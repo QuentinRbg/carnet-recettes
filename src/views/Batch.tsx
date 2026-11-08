@@ -72,7 +72,7 @@ export function Batch() {
       </ul>
 
       <div className="actions">
-        <button className="btn small" type="button" disabled={empties === 0 || !loaded}
+        <button className="btn small" type="button" disabled={empties === 0 || !loaded} aria-describedby="randomHint"
           onClick={() => updateBatch(b => fillRandom(b, recipes.filter(r => r.category !== "Autre" && !r.readyMade).map(r => r.id)))}>
           Remplir au hasard
         </button>
@@ -86,6 +86,7 @@ export function Batch() {
           <button className="btn small danger" type="button" disabled={filled.length === 0} onClick={() => setConfirmClear(true)}>Vider le plan</button>
         )}
       </div>
+      <p className="hint" id="randomHint">Au hasard : chaque plat a 2 ou 3 portions.</p>
 
       {filled.length === 0 ? (
         <div className="state">
