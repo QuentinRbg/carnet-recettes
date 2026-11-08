@@ -3,9 +3,18 @@ import { useApp } from "../AppContext";
 import { CartButton } from "../components/CartButton";
 import { BackIcon, PencilIcon, TrashIcon } from "../components/Icons";
 import { Stepper } from "../components/Stepper";
+import { SAISONS } from "../constants";
 import { usePhoto } from "../hooks/usePhoto";
 import { fmtTime, ingOf, lines, portionsOf, qtyText } from "../lib/format";
 import { EditForm } from "./EditForm";
+
+/** Saisons de la recette : « Toute l'année » si les quatre sont cochées. */
+function saisonTags(saisons: string[] = []) {
+  const s = SAISONS.filter(x => saisons.includes(x));
+  if (s.length === 0) return null;
+  if (s.length === SAISONS.length) return <span className="tag season">Toute l'année</span>;
+  return s.map(x => <span key={x} className="tag season">{x}</span>);
+}
 
 export function RecipeView({ id }: { id: string }) {
   const { recipes, loaded, go, saveRecipe, savePhoto, deletePhoto, askDelete } = useApp();
@@ -74,6 +83,7 @@ export function RecipeView({ id }: { id: string }) {
           {base > 1 ? <span>{base} pers.</span> : null}
           {(r.envies || []).map(x => <span key={x} className="tag alt">{x}</span>)}
           {(r.composants || []).map(x => <span key={x} className="tag">{x}</span>)}
+          {saisonTags(r.saisons)}
         </p>
       </div>
 

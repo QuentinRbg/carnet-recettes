@@ -9,6 +9,8 @@ export type Recipe = {
   portions?: number;
   /** Plat déjà préparé (pizza surgelée…) : pas de recette. `time` = temps de cuisson. */
   readyMade?: boolean;
+  /** Saisons où la recette est de saison (Printemps, Été, Automne, Hiver). Vide = non renseigné. */
+  saisons?: string[];
   /** Miniature de la photo (data URL JPEG, ~360 px). La grande photo est dans photos/{id}. */
   thumb?: string;
   ing?: Ing[];

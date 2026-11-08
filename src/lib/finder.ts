@@ -2,6 +2,7 @@ import { ALERTS, BASICS, CATS, COMPS, ENVIES } from "../constants";
 import type { IdeasAction, Mode } from "../constants";
 import type { Recipe } from "../types";
 import { ingOf, norm } from "./format";
+import { currentSeason, inSeason, isSeasonal } from "./season";
 
 export type Answers = {
   cat: string;
@@ -89,7 +90,7 @@ export function withAvailable(q: Question, recipes: Recipe[]): Question {
 
 const shuffle = () => Math.random() - 0.5;
 
-export function rank(f: Finder, recipes: Recipe[]): Scored[] {
+export function rank(f: Finder, recipes: Recipe[], season: string = currentSeason()): Scored[] {
   const a = f.a;
   if (f.mode === "random") {
     const any = recipes.filter(r => !f.shown.includes(r.id) && !(r.composants || []).some(c => f.rej.includes(c)));
@@ -108,6 +109,7 @@ export function rank(f: Finder, recipes: Recipe[]): Scored[] {
     let s = 0;
     const why: string[] = [];
     if (a.cat) why.push(r.category);
+    if (isSeasonal(r) && inSeason(r, season)) { s += 2; why.push("de saison"); }
     if (fast && Number(r.time) > 0) { s += 2; why.push("30 min maximum"); }
     const soft = (r.envies || []).includes("Doux pour l'estomac");
     if (f.mode === "estomac") {
@@ -134,8 +136,8 @@ export function rank(f: Finder, recipes: Recipe[]): Scored[] {
 }
 
 /** Choisit la prochaine recette (modifie f). */
-export function propose(f: Finder, recipes: Recipe[]): void {
-  const list = rank(f, recipes);
+export function propose(f: Finder, recipes: Recipe[], season: string = currentSeason()): void {
+  const list = rank(f, recipes, season);
   if (!list.length) { f.phase = "none"; f.cur = null; }
   else { f.cur = list[0]; f.shown.push(list[0].r.id); f.phase = "result"; }
 }

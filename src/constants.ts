@@ -14,6 +14,9 @@ export const PLURAL: Record<string, string> = {
 export const ENVIES = ["Réconfortant", "Léger et frais", "Gourmand", "Healthy", "Anti-inflammatoire", "Doux pour l'estomac"];
 export const ENVIE_HINT: Record<string, string> = { "Anti-inflammatoire": "sans friture" };
 
+/** Saisons au sens du calendrier : printemps mars-mai, été juin-août, automne sept.-nov., hiver déc.-fév. */
+export const SAISONS = ["Printemps", "Été", "Automne", "Hiver"];
+
 export const COMPS = ["Riz", "Pâtes", "Viande", "Œufs", "Poisson", "Légumes", "Pommes de terre", "Purée"];
 export const BASICS = ["sel", "poivre", "eau", "huile d'olive"];
 

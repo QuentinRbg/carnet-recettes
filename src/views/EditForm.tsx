@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useApp } from "../AppContext";
-import { CATS, COMPS, ENVIES, UNITS } from "../constants";
+import { CATS, COMPS, ENVIES, SAISONS, UNITS } from "../constants";
 import { usePhoto } from "../hooks/usePhoto";
 import { ingCatalog, ingOf, norm, portionsOf } from "../lib/format";
 import { processPhoto } from "../lib/image";
@@ -117,6 +117,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
   const [notes, setNotes] = useState(r.notes || "");
   const [envies, setEnvies] = useState<string[]>(r.envies || []);
   const [comps, setComps] = useState<string[]>(r.composants || []);
+  const [saisons, setSaisons] = useState<string[]>(r.saisons || []);
   const [rows, setRows] = useState<Row[]>(() => {
     const init = ingOf(r).map(g => newRow(g.n || "", g.q ? String(g.q).replace(".", ",") : "", g.u || ""));
     return init.length ? init : [newRow()];
@@ -158,7 +159,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
     if (!n) { nameRef.current?.focus(); return; }
     const ing = rows.filter(x => x.n.trim()).map(x => ({ n: x.n.trim(), q: Number(x.q.replace(",", ".")) || 0, u: x.u }));
     const p = Math.min(99, Math.max(1, Math.round(Number(portions)) || 1));
-    onSave({ name: n, category: cat, time: Number(time) || 0, portions: p, readyMade: ready, ing, envies, composants: comps, steps: steps.trim(), notes: notes.trim() },
+    onSave({ name: n, category: cat, time: Number(time) || 0, portions: p, readyMade: ready, ing, envies, composants: comps, saisons: SAISONS.filter(s => saisons.includes(s)), steps: steps.trim(), notes: notes.trim() },
       newPhoto ?? (removed ? "remove" : undefined));
   }
 
@@ -236,6 +237,11 @@ export function EditForm({ r, onSave, onCancel }: Props) {
       <div className="form">
         <span className="label-up">Composants principaux (pour le Meal finder)</span>
         <ChipGroup options={COMPS} sel={comps} onToggle={toggle(setComps)} />
+      </div>
+      <div className="form">
+        <span className="label-up">Saisons (pour « De saison » et le Meal finder)</span>
+        <ChipGroup options={SAISONS} sel={saisons} onToggle={toggle(setSaisons)} />
+        <p className="units-help">Coche les quatre pour un plat de toute l'année.</p>
       </div>
       <div className="actions">
         <button className="btn primary" type="submit" disabled={photoBusy}>Enregistrer</button>
