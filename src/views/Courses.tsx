@@ -7,7 +7,7 @@ import { aggregate, qtyText } from "../lib/format";
 export function CoursesSwitch({ current }: { current: "courses" | "batch" }) {
   const { go } = useApp();
   return (
-    <div className="seg" role="group" aria-label="Type de courses">
+    <div className="seg full" role="group" aria-label="Type de courses">
       <button type="button" aria-pressed={current === "courses"} onClick={() => go("courses")}>Panier</button>
       <button type="button" aria-pressed={current === "batch"} onClick={() => go("batch")}>Batch cooking</button>
     </div>
