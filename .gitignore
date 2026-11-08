@@ -1,0 +1,5 @@
+# Export des recettes : données personnelles, ne pas publier
+recettes-export.json
+
+# macOS
+.DS_Store
