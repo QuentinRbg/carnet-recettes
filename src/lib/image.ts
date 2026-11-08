@@ -23,7 +23,7 @@ function draw(bmp: ImageBitmap, max: number, quality: number): string {
 
 /**
  * Réduit une photo (appareil photo, galerie…) en JPEG : une grande version (1200 px) pour la fiche
- * et une miniature (240 px) pour la liste. Les photos de téléphone font plusieurs Mo : on les compresse
+ * et une miniature (360 px) pour les cartes de la liste. Les photos de téléphone font plusieurs Mo : on les compresse
  * pour rester dans les limites gratuites de Firestore.
  */
 export async function processPhoto(file: File): Promise<Photo> {
@@ -36,7 +36,7 @@ export async function processPhoto(file: File): Promise<Photo> {
       if (full.length <= MAX_PHOTO_CHARS) break;
     }
     if (full.length > MAX_PHOTO_CHARS) throw new Error("Photo trop lourde, essaie une autre image.");
-    return { full, thumb: draw(bmp, 240, 0.7) };
+    return { full, thumb: draw(bmp, 360, 0.72) };
   } finally {
     bmp.close();
   }

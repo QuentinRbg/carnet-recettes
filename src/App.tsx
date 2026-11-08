@@ -121,7 +121,7 @@ function Main() {
 
   return (
     <AppContext.Provider value={ctx}>
-      <main>
+      <main className={route.v === "list" ? "wide" : undefined}>
         <header>
           {data.notice ? <p className="sub">{data.notice}</p> : null}
         </header>

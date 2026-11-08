@@ -10,4 +10,6 @@ export const CartIcon = () => <Icon paths={["M2.5 3.5h2.7l2.3 11.2a1.5 1.5 0 0 0
 export const ReloadIcon = () => <Icon paths={["M20 12a8 8 0 1 1-2.4-5.7", "M20 4v5h-5"]} />;
 export const PencilIcon = () => <Icon paths={["M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z", "M14 7l3 3"]} />;
 export const TrashIcon = () => <Icon paths={["M4 7h16", "M10 11v6", "M14 11v6", "M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12", "M9 7V4h6v3"]} />;
+/** Assiette avec couverts : visuel d'une carte sans photo. */
+export const PlateIcon = () => <Icon paths={["M12 5a7 7 0 1 0 0 14a7 7 0 0 0 0-14z", "M12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 0 0 0-7z", "M3 4v6", "M5.5 4v6", "M3 7h2.5", "M4.25 10v10", "M21 4c-1.5 1.5-2 4-2 6h2z", "M21 10v10"]} />;
 export const BackIcon = () => <Icon paths={["M15 5l-7 7 7 7"]} />;

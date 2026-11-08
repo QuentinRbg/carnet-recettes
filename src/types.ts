@@ -9,7 +9,7 @@ export type Recipe = {
   portions?: number;
   /** Plat déjà préparé (pizza surgelée…) : pas de recette. `time` = temps de cuisson. */
   readyMade?: boolean;
-  /** Miniature de la photo (data URL JPEG, ~240 px). La grande photo est dans photos/{id}. */
+  /** Miniature de la photo (data URL JPEG, ~360 px). La grande photo est dans photos/{id}. */
   thumb?: string;
   ing?: Ing[];
   /** Ancien format : un ingrédient par ligne. */
