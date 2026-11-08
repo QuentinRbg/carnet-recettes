@@ -229,3 +229,27 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 /* Photos */
 .hero { display: block; width: 100%; max-height: 340px; object-fit: cover; border-radius: 14px; background: var(--accent-soft); }
 .panel > .hero { max-height: 260px; }
+
+/* Tiroir « Ajouter au panier » : monte depuis le bas sur téléphone, arrive par la droite sur grand écran */
+.drawer-scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 30; display: flex; align-items: flex-end; justify-content: center; }
+.drawer { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-bottom: 0; border-radius: 20px 20px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); animation: drawer-up .24s ease-out; }
+.drawer-img { display: block; flex: none; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: var(--accent-soft); }
+.drawer-img.ph { display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.drawer-img.ph .ico { width: 48px; height: 48px; opacity: .55; stroke-width: 1.5; }
+.drawer-body { display: grid; gap: 18px; padding: 18px 20px 20px; }
+.drawer .portions { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.drawer .stepper .st-btn { width: 52px; height: 52px; font-size: 1.6rem; }
+.drawer .st-val { font-size: 1.5rem; min-width: 2.4em; }
+.drawer-actions { justify-content: flex-end; }
+.drawer-actions .btn { padding: 13px 18px; }
+.drawer-actions .btn.primary { flex: 1; }
+.drawer-close { position: absolute; top: 10px; right: 10px; z-index: 2; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
+.grab { position: absolute; top: 8px; left: 50%; z-index: 2; width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .8); box-shadow: 0 0 3px rgba(0, 0, 0, .4); transform: translateX(-50%); }
+@media (min-width: 680px) {
+  .drawer-scrim { align-items: stretch; justify-content: flex-end; }
+  .drawer { max-width: 420px; max-height: none; height: 100%; border-radius: 0; border-width: 0 0 0 1px; animation: drawer-in .24s ease-out; }
+  .grab { display: none; }
+}
+@keyframes drawer-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
