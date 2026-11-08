@@ -6,15 +6,15 @@ export type RayonId = "fruits" | "boulangerie" | "viandes" | "cremerie" | "epice
  * Les rayons, dans l'ordre d'un parcours de magasin : on commence par les fruits et légumes
  * et on finit par les surgelés, pour qu'ils ne décongèlent pas dans le caddie.
  */
-export const RAYONS: { id: RayonId; label: string; emoji: string }[] = [
-  { id: "fruits", label: "Fruits & légumes", emoji: "🥬" },
-  { id: "boulangerie", label: "Boulangerie", emoji: "🍞" },
-  { id: "viandes", label: "Viandes & poissons", emoji: "🥩" },
-  { id: "cremerie", label: "Crèmerie & frais", emoji: "🧀" },
-  { id: "epicerie", label: "Épicerie", emoji: "🥫" },
-  { id: "epices", label: "Épices & condiments", emoji: "🧂" },
-  { id: "surgeles", label: "Surgelés", emoji: "🧊" },
-  { id: "autre", label: "Autre", emoji: "🛒" }
+export const RAYONS: { id: RayonId; label: string }[] = [
+  { id: "fruits", label: "Fruits & légumes" },
+  { id: "boulangerie", label: "Boulangerie" },
+  { id: "viandes", label: "Viandes & poissons" },
+  { id: "cremerie", label: "Crèmerie & frais" },
+  { id: "epicerie", label: "Épicerie" },
+  { id: "epices", label: "Épices & condiments" },
+  { id: "surgeles", label: "Surgelés" },
+  { id: "autre", label: "Autre" }
 ];
 
 /**
