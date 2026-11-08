@@ -61,7 +61,15 @@ export function dropRecipe(b: Batch, rid: string): Batch {
   return { ...b, slots: b.slots.map(s => (s.rid === rid ? emptySlot() : s)) };
 }
 
-/** Choisit au hasard autant de recettes que de cases libres, sans reprendre une recette déjà dans le plan. */
+/** Portions minimum et maximum d'un plat tiré au hasard : en batch cooking, on cuisine pour plusieurs repas. */
+export const RANDOM_MIN_PORTIONS = 2;
+export const RANDOM_MAX_PORTIONS = 3;
+
+/**
+ * Choisit au hasard autant de recettes que de cases libres, sans reprendre une recette déjà dans le plan.
+ * Chaque plat reçoit 2 ou 3 portions au hasard ; si le nombre de personnes réglé en haut est plus grand,
+ * on ne descend pas en dessous (4 réglé → 4 portions).
+ */
 export function fillRandom(b: Batch, candidates: string[], rand: () => number = Math.random): Batch {
   const taken = new Set(filledSlots(b).map(s => s.rid));
   const pool = candidates.filter(id => !taken.has(id));
@@ -69,6 +77,8 @@ export function fillRandom(b: Batch, candidates: string[], rand: () => number = 
     const j = Math.floor(rand() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
+  const lo = Math.max(RANDOM_MIN_PORTIONS, b.persons), hi = Math.max(RANDOM_MAX_PORTIONS, b.persons);
+  const portions = () => lo + Math.floor(rand() * (hi - lo + 1));
   let k = 0;
-  return { ...b, slots: b.slots.map(s => (s.rid || k >= pool.length ? s : { rid: pool[k++], n: b.persons })) };
+  return { ...b, slots: b.slots.map(s => (s.rid || k >= pool.length ? s : { rid: pool[k++], n: portions() })) };
 }
