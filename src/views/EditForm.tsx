@@ -106,6 +106,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
   const [cat, setCat] = useState(r.category);
   const [time, setTime] = useState(r.time ? String(r.time) : "");
   const [portions, setPortions] = useState(String(portionsOf(r)));
+  const [ready, setReady] = useState(!!r.readyMade);
   const [steps, setSteps] = useState(r.steps || "");
   const [notes, setNotes] = useState(r.notes || "");
   const [envies, setEnvies] = useState<string[]>(r.envies || []);
@@ -136,7 +137,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
     if (!n) { nameRef.current?.focus(); return; }
     const ing = rows.filter(x => x.n.trim()).map(x => ({ n: x.n.trim(), q: Number(x.q.replace(",", ".")) || 0, u: x.u }));
     const p = Math.min(99, Math.max(1, Math.round(Number(portions)) || 1));
-    onSave({ name: n, category: cat, time: Number(time) || 0, portions: p, ing, envies, composants: comps, steps: steps.trim(), notes: notes.trim() });
+    onSave({ name: n, category: cat, time: Number(time) || 0, portions: p, readyMade: ready, ing, envies, composants: comps, steps: steps.trim(), notes: notes.trim() });
   }
 
   return (
@@ -145,13 +146,17 @@ export function EditForm({ r, onSave, onCancel }: Props) {
       <label htmlFor="e-name">Nom
         <input ref={nameRef} type="text" id="e-name" maxLength={120} value={name} onChange={e => setName(e.target.value)} />
       </label>
+      <label className="check" htmlFor="e-ready">
+        <input type="checkbox" id="e-ready" checked={ready} onChange={e => setReady(e.target.checked)} />
+        <span>Plat déjà préparé, sans recette (pizza surgelée…)</span>
+      </label>
       <div className="two">
         <label htmlFor="e-cat">Catégorie
           <select id="e-cat" value={cat} onChange={e => setCat(e.target.value)}>
             {CATS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
-        <label htmlFor="e-time">Temps total (minutes)
+        <label htmlFor="e-time">{ready ? "Temps de cuisson (minutes)" : "Temps total (minutes)"}
           <input type="number" id="e-time" min={0} inputMode="numeric" value={time} onChange={e => setTime(e.target.value)} />
         </label>
       </div>
@@ -161,7 +166,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
       </label>
 
       <div className="form">
-        <span className="label-up">Ingrédients, pour {Math.max(1, Math.round(Number(portions)) || 1)} {Number(portions) > 1 ? "personnes" : "personne"}</span>
+        <span className="label-up">{ready ? "À acheter" : "Ingrédients"}, pour {Math.max(1, Math.round(Number(portions)) || 1)} {Number(portions) > 1 ? "personnes" : "personne"}</span>
         <div className="ing-rows" ref={rowsBox}>
           {rows.map((row, i) => (
             <div className="ing-row" key={row.id}>
@@ -183,7 +188,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
         </div>
       </div>
 
-      <label htmlFor="e-steps">Préparation
+      <label htmlFor="e-steps">{ready ? "Cuisson (facultatif)" : "Préparation"}
         <AutoTextarea id="e-steps" placeholder="Une étape par ligne" value={steps} onChange={setSteps} minHeight={320} />
       </label>
       <label htmlFor="e-notes">Notes

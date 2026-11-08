@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, fmtTime, norm, portionsOf, qtyText } from "./format";
+import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./format";
 import { newFinder, propose, rank } from "./finder";
 import type { Recipe } from "../types";
 
@@ -46,6 +46,23 @@ describe("aggregate", () => {
   });
   it("ignore les recettes supprimées", () => {
     expect(aggregate({ items: [{ rid: "x", n: 1 }], checked: [] }, [])).toEqual([]);
+  });
+});
+
+describe("plat déjà préparé", () => {
+  it("n'est pas « à compléter » même sans ingrédients ni étapes", () => {
+    expect(isComplete(r("v", {}))).toBe(false);
+    expect(isComplete(r("p", { readyMade: true }))).toBe(true);
+    expect(isComplete(r("i", { ing: [{ n: "Sel", q: 1, u: "pincée" }] }))).toBe(true);
+  });
+  it("sans ingrédients, il ne change pas la liste de courses", () => {
+    const pizza = r("pizza", { readyMade: true, time: 10 });
+    expect(aggregate({ items: [{ rid: "pizza", n: 2 }], checked: [] }, [pizza])).toEqual([]);
+  });
+  it("sert au filtre « rapide » grâce à son temps de cuisson", () => {
+    const pizza = r("pizza", { readyMade: true, time: 10 });
+    const f = newFinder(); f.a.fast = true;
+    expect(rank(f, [pizza, r("long", { time: 90 })]).map(x => x.r.id)).toEqual(["pizza"]);
   });
 });
 

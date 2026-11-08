@@ -45,15 +45,19 @@ function check(d: Draft, i: number) {
   if (!CATS.includes(d.category as string)) err("catégorie « " + d.category + " » inconnue, attendu : " + CATS.join(", "));
   if (!Number.isInteger(d.time) || (d.time as number) < 0) err("time doit être un nombre entier de minutes (0 = inconnu)");
   if (!Number.isInteger(d.portions) || (d.portions as number) < 1 || (d.portions as number) > 99) err("portions doit être un entier entre 1 et 99");
-  if (!Array.isArray(d.ing) || d.ing.length === 0) err("ing doit être une liste non vide");
-  else d.ing.forEach((g: Draft, k: number) => {
+  const ready = d.readyMade === true;
+  if (d.readyMade !== undefined && typeof d.readyMade !== "boolean") err("readyMade doit être true ou false");
+  if (!Array.isArray(d.ing) && !(ready && d.ing === undefined)) err("ing doit être une liste");
+  else if (!ready && (d.ing as unknown[]).length === 0) err("ing doit être une liste non vide (sauf plat déjà préparé : readyMade: true)");
+  else (d.ing as Draft[] ?? []).forEach((g: Draft, k: number) => {
     if (typeof g.n !== "string" || !g.n.trim()) err("ingrédient " + (k + 1) + " sans nom");
     if (typeof g.q !== "number" || !(g.q >= 0)) err("ingrédient « " + g.n + " » : q doit être un nombre positif ou nul");
     if (g.u !== "" && !unitCodes.includes(g.u as string)) err("ingrédient « " + g.n + " » : unité « " + g.u + " » inconnue, attendu : " + unitCodes.join(", ") + " ou \"\"");
   });
-  if (!(typeof d.steps === "string" || (Array.isArray(d.steps) && d.steps.every(s => typeof s === "string")))) err("steps doit être un texte ou une liste de textes");
+  if (!(typeof d.steps === "string" || (Array.isArray(d.steps) && d.steps.every(s => typeof s === "string")) || (ready && d.steps === undefined))) err("steps doit être un texte ou une liste de textes");
   (d.envies as string[] | undefined ?? []).forEach(e => { if (!ENVIES.includes(e)) err("ambiance « " + e + " » inconnue, attendu : " + ENVIES.join(", ")); });
   (d.composants as string[] | undefined ?? []).forEach(c => { if (!COMPS.includes(c)) err("composant « " + c + " » inconnu, attendu : " + COMPS.join(", ")); });
+  if (ready && !d.time) warnings.push(where + " : pas de temps de cuisson (il sert au filtre « rapide » du Meal finder)");
   if (!d.envies || !(d.envies as unknown[]).length) warnings.push(where + " : aucune ambiance (le Meal finder s'en sert)");
   if (!d.composants || !(d.composants as unknown[]).length) warnings.push(where + " : aucun composant (le Meal finder s'en sert)");
 }
@@ -93,7 +97,7 @@ if (db) {
 
 drafts.forEach((d, i) => {
   const ing = (d.ing as { n: string; q: number; u: string }[]) || [];
-  console.log("\n— " + (update ? "[MODIFIE] " : "") + ids[i] + " : " + d.name + " [" + d.category + ", " + (d.time || "?") + " min, pour " + d.portions + " pers.]");
+  console.log("\n— " + (update ? "[MODIFIE] " : "") + ids[i] + " : " + d.name + " [" + d.category + (d.readyMade ? ", PRÊT À MANGER, cuisson " : ", ") + (d.time || "?") + " min, pour " + d.portions + " pers.]");
   ing.forEach(g => console.log("    " + g.q + " " + g.u + " " + g.n));
   console.log("    ambiance : " + ((d.envies as string[]) || []).join(", ") + " | composants : " + ((d.composants as string[]) || []).join(", "));
 });
@@ -104,10 +108,11 @@ if (!write) { console.log("\nVérification OK. Rien n'a été écrit (ajoute --w
 
 let ok = 0;
 for (const [i, d] of drafts.entries()) {
-  const steps = Array.isArray(d.steps) ? (d.steps as string[]).map(s => s.trim()).filter(Boolean).join("\n") : String(d.steps).trim();
+  const steps = Array.isArray(d.steps) ? (d.steps as string[]).map(s => s.trim()).filter(Boolean).join("\n") : String(d.steps ?? "").trim();
   const data = {
     name: String(d.name).trim(), category: d.category, time: d.time, portions: d.portions,
-    ing: (d.ing as { n: string; q: number; u: string }[]).map(g => ({ n: g.n.trim(), q: g.q, u: g.u })),
+    readyMade: d.readyMade === true,
+    ing: ((d.ing ?? []) as { n: string; q: number; u: string }[]).map(g => ({ n: g.n.trim(), q: g.q, u: g.u })),
     steps, notes: typeof d.notes === "string" ? d.notes.trim() : "",
     envies: d.envies ?? [], composants: d.composants ?? []
   };

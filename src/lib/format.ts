@@ -39,6 +39,11 @@ export function portionsOf(r: Recipe): number {
   return p >= 1 ? p : 1;
 }
 
+/** Une recette est « complète » si elle a des ingrédients ou des étapes, ou si c'est un plat déjà préparé. */
+export function isComplete(r: Recipe): boolean {
+  return !!r.readyMade || ingOf(r).length > 0 || lines(r.steps).length > 0;
+}
+
 /** Ingrédients d'une recette, y compris l'ancien format (un ingrédient par ligne). */
 export function ingOf(r: Recipe): Ing[] {
   if (Array.isArray(r.ing)) return r.ing;

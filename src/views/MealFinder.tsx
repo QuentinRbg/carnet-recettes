@@ -230,7 +230,12 @@ function AlertScreen({ finder, update }: { finder: Finder; update: Update }) {
       <div className="choices">
         {al.actions.map(act => (
           <Choice key={act.label} label={act.label} pressed={false} onClick={() => update(f => {
-            if (act.kind === "ideas") { f.idea = { act, i: -1 }; nextIdea(f); f.phase = "ideas"; }
+            if (act.kind === "ideas") {
+              // « Plat déjà préparé » : on ajoute ceux du carnet aux idées de base.
+              const own = act.withReadyMade ? recipes.filter(r => r.readyMade).map(r => r.name) : [];
+              const items = [...act.items, ...own.filter(n => !act.items.includes(n))];
+              f.idea = { act: { ...act, items }, i: -1 }; nextIdea(f); f.phase = "ideas";
+            }
             else { f.mode = act.mode; f.shown = []; f.rej = []; propose(f, recipes); }
           })} />
         ))}

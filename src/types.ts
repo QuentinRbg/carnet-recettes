@@ -7,6 +7,8 @@ export type Recipe = {
   time: number;
   /** Nombre de personnes pour lequel les quantités `ing` sont écrites (1 si absent). */
   portions?: number;
+  /** Plat déjà préparé (pizza surgelée…) : pas de recette. `time` = temps de cuisson. */
+  readyMade?: boolean;
   ing?: Ing[];
   /** Ancien format : un ingrédient par ligne. */
   ingredients?: string;

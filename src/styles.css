@@ -208,3 +208,7 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 .dialog .st-val { font-size: 1.5rem; min-width: 2.4em; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 500; z-index: 40; max-width: calc(100% - 32px); text-align: center; }
 @media (prefers-reduced-motion: no-preference) { .card { transition: border-color .15s; } }
+
+/* Case à cocher dans un formulaire */
+.form label.check { display: flex; align-items: center; gap: 10px; font-size: .95rem; color: var(--fg); cursor: pointer; }
+.form label.check input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }

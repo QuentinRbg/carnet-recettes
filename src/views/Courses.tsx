@@ -63,6 +63,7 @@ export function Courses() {
           <h3>Liste de courses</h3>
           <span className="sub" style={{ margin: 0 }}>{doneCount} / {list.length} cochés</span>
         </div>
+        {list.length === 0 ? <p className="empty-line">Rien à acheter pour ces recettes.</p> : null}
         <ul className="shop">
           {list.map(x => (
             <li key={x.key} className={isOn(x.key) ? "done" : ""}>
