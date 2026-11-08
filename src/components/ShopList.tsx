@@ -29,7 +29,7 @@ export function ShopList({ lines, isOn, onToggle }: Props) {
         const left = g.items.filter(x => !isOn(x.key)).length;
         return (
           <section key={g.id} className="shop-group" aria-label={g.label}>
-            <h4><span aria-hidden="true">{g.emoji}</span> {g.label}<span className="count">{left === 0 ? "✓" : left}</span></h4>
+            <h4>{g.label}<span className="count">{left === 0 ? "✓" : left}</span></h4>
             <ul className="shop">
               {g.items.map(x => (
                 <li key={x.key} className={isOn(x.key) ? "done" : ""}>
