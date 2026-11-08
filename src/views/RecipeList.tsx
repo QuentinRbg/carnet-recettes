@@ -6,16 +6,19 @@ import { Dialog } from "../components/Dialog";
 import { PlateIcon } from "../components/Icons";
 import { CATS } from "../constants";
 import { fmtTime, ingOf, norm } from "../lib/format";
+import { inSeason } from "../lib/season";
 import type { Recipe } from "../types";
 
 const READY = "Prêt à manger";
+const SEASON = "De saison";
 
 export type ListUi = { filterCat: string; query: string };
 
 function matches(r: Recipe, ui: ListUi): boolean {
   if (ui.filterCat === "Favorites" && !r.fav) return false;
   if (ui.filterCat === READY && !r.readyMade) return false;
-  if (ui.filterCat !== "Toutes" && ui.filterCat !== "Favorites" && ui.filterCat !== READY && r.category !== ui.filterCat) return false;
+  if (ui.filterCat === SEASON && !inSeason(r)) return false;
+  if (ui.filterCat !== "Toutes" && ui.filterCat !== "Favorites" && ui.filterCat !== READY && ui.filterCat !== SEASON && r.category !== ui.filterCat) return false;
   if (!ui.query.trim()) return true;
   const q = norm(ui.query.trim());
   if (norm(r.name).includes(q) || norm(r.category).includes(q)) return true;
@@ -43,8 +46,8 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
         <button className="btn primary" type="button" onClick={() => setAdding(true)}>Ajouter</button>
       </div>
       <div className="chips" role="group" aria-label="Filtrer par catégorie">
-        {["Toutes", "Favorites", READY, ...CATS].map(c => {
-          const n = recipes.filter(r => c === "Toutes" ? true : c === "Favorites" ? r.fav : c === READY ? !!r.readyMade : r.category === c).length;
+        {["Toutes", "Favorites", SEASON, READY, ...CATS].map(c => {
+          const n = recipes.filter(r => c === "Toutes" ? true : c === "Favorites" ? r.fav : c === SEASON ? inSeason(r) : c === READY ? !!r.readyMade : r.category === c).length;
           if (n === 0 && c !== "Toutes" && c !== ui.filterCat) return null;
           return (
             <button key={c} className="chip" type="button" aria-pressed={ui.filterCat === c}

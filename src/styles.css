@@ -253,3 +253,6 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 @keyframes drawer-up { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes drawer-in { from { transform: translateX(100%); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+
+/* Étiquettes de saison sur la fiche */
+.tag.season { background: var(--warn-soft); color: var(--warn); }

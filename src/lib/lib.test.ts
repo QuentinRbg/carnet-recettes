@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./format";
 import { newFinder, propose, rank } from "./finder";
+import { currentSeason, inSeason, isSeasonal } from "./season";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
 
@@ -98,5 +99,42 @@ describe("photo", () => {
     expect(fitSize(3000, 4000, 240)).toEqual({ w: 180, h: 240 });
     expect(fitSize(300, 200, 1200)).toEqual({ w: 300, h: 200 });
     expect(fitSize(1, 5000, 100).w).toBe(1);
+  });
+});
+
+describe("saisons", () => {
+  it("donne la saison du jour au sens du calendrier", () => {
+    expect(currentSeason(new Date(2026, 1, 28))).toBe("Hiver");   // 28 février
+    expect(currentSeason(new Date(2026, 2, 1))).toBe("Printemps"); // 1er mars
+    expect(currentSeason(new Date(2026, 4, 31))).toBe("Printemps");
+    expect(currentSeason(new Date(2026, 5, 1))).toBe("Été");
+    expect(currentSeason(new Date(2026, 7, 31))).toBe("Été");
+    expect(currentSeason(new Date(2026, 8, 1))).toBe("Automne");
+    expect(currentSeason(new Date(2026, 10, 30))).toBe("Automne");
+    expect(currentSeason(new Date(2026, 11, 1))).toBe("Hiver");
+    expect(currentSeason(new Date(2026, 0, 15))).toBe("Hiver");
+  });
+  it("sait si une recette est de saison ou vraiment saisonnière", () => {
+    expect(inSeason({ saisons: ["Été", "Automne"] }, "Été")).toBe(true);
+    expect(inSeason({ saisons: ["Hiver"] }, "Été")).toBe(false);
+    expect(inSeason({}, "Été")).toBe(false);
+    expect(isSeasonal({ saisons: ["Hiver"] })).toBe(true);
+    expect(isSeasonal({ saisons: ["Printemps", "Été", "Automne", "Hiver"] })).toBe(false);
+    expect(isSeasonal({ saisons: [] })).toBe(false);
+  });
+  it("le Meal finder met les recettes de saison devant, sans favoriser celles de toute l'année", () => {
+    const recettes = [
+      r("hiver", { saisons: ["Hiver"] }),
+      r("ete", { saisons: ["Été"] }),
+      r("toute", { saisons: ["Printemps", "Été", "Automne", "Hiver"] }),
+      r("vide", {})
+    ];
+    for (let i = 0; i < 20; i++) {
+      const top = rank(newFinder(), recettes, "Été")[0];
+      expect(top.r.id).toBe("ete");
+      expect(top.why).toContain("de saison");
+    }
+    const sansBoost = rank(newFinder(), recettes, "Été").filter(x => x.r.id !== "ete");
+    sansBoost.forEach(x => expect(x.why).not.toContain("de saison"));
   });
 });

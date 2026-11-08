@@ -14,7 +14,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { CATS, COMPS, ENVIES, UNITS } from "../src/constants.ts";
+import { CATS, COMPS, ENVIES, SAISONS, UNITS } from "../src/constants.ts";
 
 const PROJECT_ID = "carnet-recettes-bbbf7";
 const ROOT = join(import.meta.dirname, "..");
@@ -57,6 +57,8 @@ function check(d: Draft, i: number) {
   if (!(typeof d.steps === "string" || (Array.isArray(d.steps) && d.steps.every(s => typeof s === "string")) || (ready && d.steps === undefined))) err("steps doit être un texte ou une liste de textes");
   (d.envies as string[] | undefined ?? []).forEach(e => { if (!ENVIES.includes(e)) err("ambiance « " + e + " » inconnue, attendu : " + ENVIES.join(", ")); });
   (d.composants as string[] | undefined ?? []).forEach(c => { if (!COMPS.includes(c)) err("composant « " + c + " » inconnu, attendu : " + COMPS.join(", ")); });
+  (d.saisons as string[] | undefined ?? []).forEach(s => { if (!SAISONS.includes(s)) err("saison « " + s + " » inconnue, attendu : " + SAISONS.join(", ")); });
+  if (!d.saisons || !(d.saisons as unknown[]).length) warnings.push(where + " : aucune saison (le filtre « De saison » et le Meal finder s'en servent ; les quatre = toute l'année)");
   if (ready && !d.time) warnings.push(where + " : pas de temps de cuisson (il sert au filtre « rapide » du Meal finder)");
   if (!d.envies || !(d.envies as unknown[]).length) warnings.push(where + " : aucune ambiance (le Meal finder s'en sert)");
   if (!d.composants || !(d.composants as unknown[]).length) warnings.push(where + " : aucun composant (le Meal finder s'en sert)");
@@ -99,7 +101,7 @@ drafts.forEach((d, i) => {
   const ing = (d.ing as { n: string; q: number; u: string }[]) || [];
   console.log("\n— " + (update ? "[MODIFIE] " : "") + ids[i] + " : " + d.name + " [" + d.category + (d.readyMade ? ", PRÊT À MANGER, cuisson " : ", ") + (d.time || "?") + " min, pour " + d.portions + " pers.]");
   ing.forEach(g => console.log("    " + g.q + " " + g.u + " " + g.n));
-  console.log("    ambiance : " + ((d.envies as string[]) || []).join(", ") + " | composants : " + ((d.composants as string[]) || []).join(", "));
+  console.log("    ambiance : " + ((d.envies as string[]) || []).join(", ") + " | composants : " + ((d.composants as string[]) || []).join(", ") + " | saisons : " + ((d.saisons as string[]) || []).join(", "));
 });
 if (warnings.length) console.log("\nAvertissements :\n  - " + warnings.join("\n  - "));
 if (errors.length) { console.error("\nErreurs :\n  - " + errors.join("\n  - ")); process.exit(1); }
@@ -114,7 +116,7 @@ for (const [i, d] of drafts.entries()) {
     readyMade: d.readyMade === true,
     ing: ((d.ing ?? []) as { n: string; q: number; u: string }[]).map(g => ({ n: g.n.trim(), q: g.q, u: g.u })),
     steps, notes: typeof d.notes === "string" ? d.notes.trim() : "",
-    envies: d.envies ?? [], composants: d.composants ?? []
+    envies: d.envies ?? [], composants: d.composants ?? [], saisons: d.saisons ?? []
   };
   try {
     if (update) await db!.collection("recettes").doc(ids[i]).update(data);
