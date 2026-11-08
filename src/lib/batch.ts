@@ -1,16 +1,16 @@
 import type { Cart } from "../types";
 
-/** Une case du plan : une recette et le nombre de personnes. rid vide = case libre. */
-export type BatchSlot = { rid: string; n: number };
+/** Une case du plan : une recette, pour une portion (le nombre de personnes est réglé une fois pour tout le plan). rid vide = case libre. */
+export type BatchSlot = { rid: string };
 
-/** Plan de batch cooking : les cases, ce qui est coché dans la liste de courses, et le nombre de personnes proposé par défaut. */
+/** Plan de batch cooking : les cases, ce qui est coché dans la liste de courses, et le nombre de personnes pour chaque case. */
 export type Batch = { slots: BatchSlot[]; checked: string[]; persons: number };
 
 export const MIN_SLOTS = 1;
 export const MAX_SLOTS = 12;
 export const DEFAULT_SLOTS = 6;
 
-const emptySlot = (): BatchSlot => ({ rid: "", n: 1 });
+const emptySlot = (): BatchSlot => ({ rid: "" });
 
 export function defaultBatch(): Batch {
   return { slots: Array.from({ length: DEFAULT_SLOTS }, emptySlot), checked: [], persons: 2 };
@@ -23,10 +23,7 @@ export function normalizeBatch(d: unknown): Batch {
   if (!d || typeof d !== "object") return defaultBatch();
   const x = d as { slots?: unknown; checked?: unknown; persons?: unknown };
   const slots = Array.isArray(x.slots)
-    ? x.slots.slice(0, MAX_SLOTS).map((s: { rid?: unknown; n?: unknown } | null) => ({
-        rid: s && typeof s.rid === "string" ? s.rid : "",
-        n: clamp(Math.round(Number(s?.n)) || 1, 1, 99)
-      }))
+    ? x.slots.slice(0, MAX_SLOTS).map((s: { rid?: unknown } | null) => ({ rid: s && typeof s.rid === "string" ? s.rid : "" }))
     : defaultBatch().slots;
   return {
     slots: slots.length ? slots : defaultBatch().slots,
@@ -51,9 +48,9 @@ export function resizeSlots(slots: BatchSlot[], count: number): BatchSlot[] {
 
 export const filledSlots = (b: Batch): BatchSlot[] => b.slots.filter(s => s.rid);
 
-/** Le plan sous forme de panier : sert à calculer la liste de courses avec la même fonction `aggregate`. */
+/** Le plan sous forme de panier : sert à calculer la liste de courses avec la même fonction `aggregate`. Chaque case compte pour `persons` personnes. */
 export function batchToCart(b: Batch): Cart {
-  return { items: filledSlots(b).map(s => ({ rid: s.rid, n: s.n })), checked: b.checked };
+  return { items: filledSlots(b).map(s => ({ rid: s.rid, n: b.persons })), checked: b.checked };
 }
 
 /** Vide les cases qui pointent vers une recette supprimée. */
@@ -84,7 +81,7 @@ export function randomGroups(total: number, rand: () => number = Math.random): n
 
 /**
  * Remplit les cases libres au hasard. Chaque recette tirée occupe 2 ou 3 cases (voir randomGroups), l'une à côté de l'autre,
- * avec le nombre de personnes réglé en haut. On ne reprend pas une recette déjà dans le plan.
+ * pour le nombre de personnes réglé en haut. On ne reprend pas une recette déjà dans le plan.
  * S'il n'y a pas assez de recettes, les cases se répartissent entre celles qui existent.
  */
 export function fillRandom(b: Batch, candidates: string[], rand: () => number = Math.random): Batch {
@@ -104,7 +101,28 @@ export function fillRandom(b: Batch, candidates: string[], rand: () => number = 
   const slots = [...b.slots];
   let at = 0;
   sizes.forEach((size, g) => {
-    for (let k = 0; k < size; k++) slots[free[at++]] = { rid: pool[g], n: b.persons };
+    for (let k = 0; k < size; k++) slots[free[at++]] = { rid: pool[g] };
   });
   return { ...b, slots };
 }
+
+/**
+ * Ajoute une portion d'un plat : la recette de la case `index` occupe une case libre de plus.
+ * La nouvelle case se place juste après les cases de cette recette (elles restent côte à côte) ;
+ * on retire pour cela une case libre ailleurs, donc le nombre de cases ne change pas.
+ * Sans case libre, ou si la case est libre, rien ne change.
+ */
+export function addPortion(b: Batch, index: number): Batch {
+  const rid = b.slots[index]?.rid;
+  if (!rid) return b;
+  const free = b.slots.findIndex(s => !s.rid);
+  if (free < 0) return b;
+  const slots = b.slots.filter((_, i) => i !== free);
+  let last = free < index ? index - 1 : index;
+  while (slots[last + 1]?.rid === rid) last++;
+  slots.splice(last + 1, 0, { rid });
+  return { ...b, slots };
+}
+
+/** Il reste au moins une case libre : on peut ajouter une portion. */
+export const hasFreeSlot = (b: Batch): boolean => b.slots.some(s => !s.rid);

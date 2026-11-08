@@ -5,7 +5,7 @@ import { RecipePicker } from "../components/RecipePicker";
 import { ShopList } from "../components/ShopList";
 import { Stepper } from "../components/Stepper";
 import { CoursesSwitch } from "./Courses";
-import { MAX_SLOTS, MIN_SLOTS, batchToCart, fillRandom, filledSlots, resizeSlots } from "../lib/batch";
+import { MAX_SLOTS, MIN_SLOTS, addPortion, batchToCart, fillRandom, filledSlots, hasFreeSlot, resizeSlots } from "../lib/batch";
 import { aggregate, fmtTime, lines } from "../lib/format";
 
 /** Batch cooking : on choisit le nombre de plats, on remplit les cases, et on obtient la liste de courses et les recettes. */
@@ -17,9 +17,9 @@ export function Batch() {
   const byId = (id: string) => recipes.find(r => r.id === id);
   const filled = filledSlots(batch).filter(s => byId(s.rid));
   // Une recette qui occupe plusieurs cases n'apparaît qu'une fois dans « Recettes à cuisiner », avec le total de personnes.
-  const cooking = filled.reduce<{ rid: string; n: number; cases: number }[]>((acc, s) => {
+  const cooking = filled.reduce<{ rid: string; cases: number }[]>((acc, s) => {
     const e = acc.find(x => x.rid === s.rid);
-    if (e) { e.n += s.n; e.cases++; } else acc.push({ rid: s.rid, n: s.n, cases: 1 });
+    if (e) e.cases++; else acc.push({ rid: s.rid, cases: 1 });
     return acc;
   }, []);
   const shop = aggregate(batchToCart(batch), recipes);
@@ -59,11 +59,12 @@ export function Batch() {
                     </span>
                   </button>
                   <button className="icon-btn cart" type="button" aria-label={"Retirer le plat " + (i + 1)}
-                    onClick={() => updateBatch(b => ({ ...b, slots: b.slots.map((x, k) => k === i ? { rid: "", n: 1 } : x) }))}>×</button>
+                    onClick={() => updateBatch(b => ({ ...b, slots: b.slots.map((x, k) => k === i ? { rid: "" } : x) }))}>×</button>
                   <div className="slot-foot">
-                    <Stepper small value={s.n} min={1} max={99}
-                      onChange={v => updateBatch(b => ({ ...b, slots: b.slots.map((x, k) => k === i ? { ...x, n: v } : x) }))} />
-                    <span className="sub" style={{ margin: 0 }}>pers.</span>
+                    <button className="btn small" type="button" disabled={!hasFreeSlot(batch)}
+                      aria-label={"Ajouter une portion de " + r.name + " (prend une case libre)"}
+                      title={hasFreeSlot(batch) ? "Prend une case libre de plus" : "Plus de case libre"}
+                      onClick={() => updateBatch(b => addPortion(b, i))}>+ 1 portion</button>
                   </div>
                 </>
               ) : (
@@ -85,7 +86,7 @@ export function Batch() {
         {confirmClear ? (
           <>
             <button className="btn small danger" type="button"
-              onClick={() => { updateBatch(b => ({ ...b, slots: b.slots.map(() => ({ rid: "", n: 1 })), checked: [] })); setConfirmClear(false); }}>Confirmer : vider le plan</button>
+              onClick={() => { updateBatch(b => ({ ...b, slots: b.slots.map(() => ({ rid: "" })), checked: [] })); setConfirmClear(false); }}>Confirmer : vider le plan</button>
             <button className="btn small" type="button" onClick={() => setConfirmClear(false)}>Annuler</button>
           </>
         ) : (
@@ -126,7 +127,7 @@ export function Batch() {
                     <details>
                       <summary>
                         <span className="name">{r.name}</span>
-                        <span className="sub" style={{ margin: 0 }}>{s.n} pers.{s.cases > 1 ? " · " + s.cases + " plats" : ""}{r.time ? " · " + fmtTime(r.time) : ""}</span>
+                        <span className="sub" style={{ margin: 0 }}>{s.cases * batch.persons} pers.{s.cases > 1 ? " · " + s.cases + " plats" : ""}{r.time ? " · " + fmtTime(r.time) : ""}</span>
                       </summary>
                       {steps.length ? (
                         <ol className="steps">
@@ -149,7 +150,7 @@ export function Batch() {
           onPick={r => {
             const i = picking;
             setPicking(null);
-            updateBatch(b => ({ ...b, slots: b.slots.map((x, k) => k === i ? { rid: r.id, n: b.persons } : x) }));
+            updateBatch(b => ({ ...b, slots: b.slots.map((x, k) => k === i ? { rid: r.id } : x) }));
           }} />
       ) : null}
     </section>
