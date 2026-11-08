@@ -223,6 +223,23 @@ describe("batch cooking", () => {
     expect(ids).not.toContain("");
     expect(out.slots[1].n).toBe(3);
   });
+  it("au hasard, chaque plat a 2 ou 3 portions", () => {
+    const b = { ...defaultBatch(), persons: 2 };
+    const bas = fillRandom(b, ["a", "b", "c", "d", "e", "f"], () => 0);
+    const haut = fillRandom(b, ["a", "b", "c", "d", "e", "f"], () => 0.999);
+    expect(filledSlots(bas).every(s => s.n === 2)).toBe(true);
+    expect(filledSlots(haut).every(s => s.n === 3)).toBe(true);
+    const melange = fillRandom(b, ["a", "b", "c", "d", "e", "f"], Math.random);
+    expect(filledSlots(melange).every(s => s.n === 2 || s.n === 3)).toBe(true);
+  });
+  it("au hasard, on ne propose jamais moins de 2 portions, même si 1 personne est réglé", () => {
+    const out = fillRandom({ ...defaultBatch(), persons: 1 }, ["a", "b", "c"], () => 0);
+    expect(filledSlots(out).every(s => s.n >= 2)).toBe(true);
+  });
+  it("au hasard, un nombre de personnes réglé plus haut est respecté", () => {
+    const out = fillRandom({ ...defaultBatch(), persons: 5 }, ["a", "b", "c"], () => 0.7);
+    expect(filledSlots(out).every(s => s.n === 5)).toBe(true);
+  });
   it("laisse des cases libres s'il n'y a pas assez de recettes", () => {
     const out = fillRandom(defaultBatch(), ["a", "b"], () => 0.1);
     expect(filledSlots(out)).toHaveLength(2);
