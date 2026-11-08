@@ -50,12 +50,11 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
           onChange={e => setUi({ ...ui, query: e.target.value })} />
         <button className="btn primary" type="button" onClick={() => setAdding(true)}>Ajouter</button>
       </div>
-      <div className="chips" role="group" aria-label="Filtrer par type">
+      <div className="chips" role="group" aria-label="Filtrer les recettes">
         <button className="chip" type="button" aria-pressed={ui.filters.length === 0}
           onClick={() => setUi({ ...ui, filters: [] })}>Toutes {recipes.length}</button>
         {TYPE_FILTERS.map(chip)}
-      </div>
-      <div className="chips" role="group" aria-label="Filtrer par ambiance">
+        <span className="chip-sep" aria-hidden="true" />
         {MOOD_FILTERS.map(chip)}
       </div>
       <ul className="list">
