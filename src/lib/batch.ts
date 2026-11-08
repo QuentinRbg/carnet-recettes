@@ -61,24 +61,50 @@ export function dropRecipe(b: Batch, rid: string): Batch {
   return { ...b, slots: b.slots.map(s => (s.rid === rid ? emptySlot() : s)) };
 }
 
-/** Portions minimum et maximum d'un plat tiré au hasard : en batch cooking, on cuisine pour plusieurs repas. */
-export const RANDOM_MIN_PORTIONS = 2;
-export const RANDOM_MAX_PORTIONS = 3;
+/** Une recette tirée au hasard occupe 2 ou 3 cases : en batch cooking, on cuisine un plat pour plusieurs repas. */
+export const GROUP_MIN = 2;
+export const GROUP_MAX = 3;
 
 /**
- * Choisit au hasard autant de recettes que de cases libres, sans reprendre une recette déjà dans le plan.
- * Chaque plat reçoit 2 ou 3 portions au hasard ; si le nombre de personnes réglé en haut est plus grand,
- * on ne descend pas en dessous (4 réglé → 4 portions).
+ * Répartit `total` cases en groupes de 2 ou 3, au hasard : 6 cases peuvent donner 3 + 3, 2 + 2 + 2, 2 + 3 + 1…
+ * Une case isolée n'arrive que s'il n'y a qu'une case : on ne laisse jamais un « 1 » en bout de liste quand on peut l'éviter.
+ */
+export function randomGroups(total: number, rand: () => number = Math.random): number[] {
+  const out: number[] = [];
+  let left = Math.max(0, Math.floor(total));
+  while (left > 0) {
+    if (left <= GROUP_MAX) { out.push(left); break; }
+    let size = GROUP_MIN + Math.floor(rand() * (GROUP_MAX - GROUP_MIN + 1));
+    if (left - size === 1) size = GROUP_MIN;
+    out.push(size);
+    left -= size;
+  }
+  return out;
+}
+
+/**
+ * Remplit les cases libres au hasard. Chaque recette tirée occupe 2 ou 3 cases (voir randomGroups), l'une à côté de l'autre,
+ * avec le nombre de personnes réglé en haut. On ne reprend pas une recette déjà dans le plan.
+ * S'il n'y a pas assez de recettes, les cases se répartissent entre celles qui existent.
  */
 export function fillRandom(b: Batch, candidates: string[], rand: () => number = Math.random): Batch {
+  const free = b.slots.map((s, i) => (s.rid ? -1 : i)).filter(i => i >= 0);
   const taken = new Set(filledSlots(b).map(s => s.rid));
   const pool = candidates.filter(id => !taken.has(id));
+  if (!free.length || !pool.length) return b;
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  const lo = Math.max(RANDOM_MIN_PORTIONS, b.persons), hi = Math.max(RANDOM_MAX_PORTIONS, b.persons);
-  const portions = () => lo + Math.floor(rand() * (hi - lo + 1));
-  let k = 0;
-  return { ...b, slots: b.slots.map(s => (s.rid || k >= pool.length ? s : { rid: pool[k++], n: portions() })) };
+  let sizes = randomGroups(free.length, rand);
+  if (pool.length < sizes.length) {
+    sizes = Array.from({ length: pool.length }, () => 0);
+    for (let k = 0; k < free.length; k++) sizes[k % pool.length]++;
+  }
+  const slots = [...b.slots];
+  let at = 0;
+  sizes.forEach((size, g) => {
+    for (let k = 0; k < size; k++) slots[free[at++]] = { rid: pool[g], n: b.persons };
+  });
+  return { ...b, slots };
 }
