@@ -29,7 +29,7 @@ export default function App() {
   return user ? <Main /> : <Login />;
 }
 
-type ImportPlan = { list: Recipe[]; panier?: Cart };
+type ImportPlan = { list: Recipe[]; panier?: Cart; photos?: Record<string, string> };
 
 function Main() {
   const { toast, node: toastNode } = useToast();
@@ -91,20 +91,24 @@ function Main() {
     if (!f) return;
     const reader = new FileReader();
     reader.onload = () => {
-      let parsed: { recettes?: Recipe[]; panier?: Cart };
+      let parsed: { recettes?: Recipe[]; panier?: Cart; photos?: Record<string, unknown> };
       try { parsed = JSON.parse(String(reader.result)); } catch { toast("Fichier illisible."); return; }
       const list = Array.isArray(parsed.recettes)
         ? parsed.recettes.filter(r => r && typeof r.id === "string" && r.id && !r.id.includes("/")) : [];
       if (!list.length) { toast("Aucune recette dans ce fichier."); return; }
       const p = parsed.panier;
       const panier = p && Array.isArray(p.items) ? { items: p.items, checked: Array.isArray(p.checked) ? p.checked : [] } : undefined;
-      setImportPlan({ list, panier });
+      const photos: Record<string, string> = {};
+      Object.entries(parsed.photos ?? {}).forEach(([k, v]) => { if (typeof v === "string" && v.startsWith("data:image/")) photos[k] = v; });
+      setImportPlan({ list, panier, photos });
     };
     reader.readAsText(f);
   }
 
-  function exportAll() {
-    const out = { app: "carnet-recettes", version: 1, exportedAt: new Date().toISOString(), recettes: data.recipes, panier: data.cart };
+  async function exportAll() {
+    let photos: Record<string, string> = {};
+    try { photos = await data.fetchPhotos(); } catch { toast("Les photos n'ont pas pu être exportées."); }
+    const out = { app: "carnet-recettes", version: 2, exportedAt: new Date().toISOString(), recettes: data.recipes, panier: data.cart, photos };
     const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -161,7 +165,7 @@ function Main() {
           onCancel={() => setImportPlan(null)}
           onOk={() => {
             const plan = importPlan; setImportPlan(null);
-            data.importAll(plan.list, plan.panier)
+            data.importAll(plan.list, plan.panier, plan.photos)
               .then(() => toast(plan.list.length + (plan.list.length > 1 ? " recettes importées" : " recette importée")))
               .catch(() => toast("Import impossible, réessaie."));
           }} />

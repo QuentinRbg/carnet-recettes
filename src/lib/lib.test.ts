@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./format";
 import { newFinder, propose, rank } from "./finder";
 import type { Recipe } from "../types";
+import { fitSize } from "./image";
 
 const base = { category: "Plat", time: 20, steps: "", notes: "", fav: false, createdAt: 0, envies: [], composants: [] };
 const r = (id: string, over: Partial<Recipe>): Recipe => ({ id, name: id, ...base, ...over });
@@ -88,5 +89,14 @@ describe("meal finder", () => {
     expect(new Set(f.shown).size).toBe(3);
     propose(f, recipes);
     expect(f.phase).toBe("none");
+  });
+});
+
+describe("photo", () => {
+  it("réduit sans déformer ni agrandir", () => {
+    expect(fitSize(4000, 3000, 1200)).toEqual({ w: 1200, h: 900 });
+    expect(fitSize(3000, 4000, 240)).toEqual({ w: 180, h: 240 });
+    expect(fitSize(300, 200, 1200)).toEqual({ w: 300, h: 200 });
+    expect(fitSize(1, 5000, 100).w).toBe(1);
   });
 });

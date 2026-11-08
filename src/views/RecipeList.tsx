@@ -56,6 +56,7 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
           const done = isComplete(r);
           return (
             <li key={r.id} className="card">
+              {r.thumb ? <img className="thumb" src={r.thumb} alt="" loading="lazy" /> : null}
               <button className="card-main" type="button" onClick={() => go("r-" + r.id)}>
                 <span className="name">{r.name}</span>
                 <span className="meta">

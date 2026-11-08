@@ -3,12 +3,14 @@ import { useApp } from "../AppContext";
 import { CartButton } from "../components/CartButton";
 import { BackIcon, PencilIcon, TrashIcon } from "../components/Icons";
 import { Stepper } from "../components/Stepper";
+import { usePhoto } from "../hooks/usePhoto";
 import { fmtTime, ingOf, lines, portionsOf, qtyText } from "../lib/format";
 import { EditForm } from "./EditForm";
 
 export function RecipeView({ id }: { id: string }) {
-  const { recipes, loaded, go, saveRecipe, askDelete } = useApp();
+  const { recipes, loaded, go, saveRecipe, savePhoto, deletePhoto, askDelete } = useApp();
   const r = recipes.find(x => x.id === id);
+  const photo = usePhoto(id, r?.thumb);
   const [editing, setEditing] = useState(false);
   // null = pas touché : on affiche la recette pour son nombre de personnes recommandé.
   const [pickedN, setViewN] = useState<number | null>(null);
@@ -46,7 +48,12 @@ export function RecipeView({ id }: { id: string }) {
       <section className="view">
         {topbar}
         <EditForm r={r} onCancel={() => setEditing(false)}
-          onSave={patch => { setEditing(false); saveRecipe(r.id, patch); }} />
+          onSave={(patch, change) => {
+            setEditing(false);
+            saveRecipe(r.id, patch);
+            if (change === "remove") deletePhoto(r.id);
+            else if (change) savePhoto(r.id, change);
+          }} />
       </section>
     );
   }
@@ -57,6 +64,7 @@ export function RecipeView({ id }: { id: string }) {
   return (
     <section className="view">
       {topbar}
+      {photo ? <img className="hero" src={photo} alt="" /> : null}
       <div>
         <h1>{r.name}</h1>
         <p className="meta" style={{ margin: "8px 0 0" }}>
