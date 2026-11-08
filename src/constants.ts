@@ -20,7 +20,7 @@ export const BASICS = ["sel", "poivre", "eau", "huile d'olive"];
 export type Mode = "" | "random" | "estomac" | "fast";
 
 export type RecipeAction = { label: string; kind: "recipe"; mode: Mode };
-export type IdeasAction = { label: string; kind: "ideas"; title: string; items: string[] };
+export type IdeasAction = { label: string; kind: "ideas"; title: string; items: string[]; withReadyMade?: boolean };
 export type AlertAction = RecipeAction | IdeasAction;
 export type AlertInfo = { label: string; title: string; intro: string; actions: AlertAction[] };
 
@@ -44,7 +44,7 @@ export const ALERTS: Record<string, AlertInfo> = {
     intro: "On part sur une recette rapide, ou sur encore plus simple.",
     actions: [
       { label: "Une recette rapide", kind: "recipe", mode: "fast" },
-      { label: "Un plat déjà préparé", kind: "ideas", title: "Plat déjà préparé", items: ["Pizza surgelée", "Plat surgelé au micro-ondes", "Soupe en brique", "Les restes du frigo", "Pâtes avec une sauce toute prête"] },
+      { label: "Un plat déjà préparé", kind: "ideas", title: "Plat déjà préparé", withReadyMade: true, items: ["Pizza surgelée", "Plat surgelé au micro-ondes", "Soupe en brique", "Les restes du frigo", "Pâtes avec une sauce toute prête"] },
       { label: "De la nourriture à emporter", kind: "ideas", title: "À emporter", items: ["Chinois", "Pizzeria", "Kebab", "Sushi", "Burger", "Indien", "Poke bowl"] }
     ]
   }

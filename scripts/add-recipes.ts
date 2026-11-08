@@ -3,6 +3,8 @@
 //
 //   node scripts/add-recipes.ts recettes-a-ajouter.json            vérifie et affiche, n'écrit rien
 //   node scripts/add-recipes.ts recettes-a-ajouter.json --write    écrit dans la base
+//   ... --update                                                   modifie des recettes déjà en base (même identifiant),
+//                                                                  en gardant favori et date de création
 //
 // La clé est cherchée dans cet ordre : CARNET_KEY=chemin, puis un fichier service-account*.json ou
 // *-firebase-adminsdk-*.json à la racine du dépôt (ignoré par git), puis ~/.config/carnet-recettes/service-account.json.
@@ -25,10 +27,11 @@ const KEY_PATH = findKey();
 
 const [file, ...flags] = process.argv.slice(2);
 const write = flags.includes("--write");
+const update = flags.includes("--update");
 if (!file) { console.error("Usage : node scripts/add-recipes.ts <fichier.json> [--write]"); process.exit(1); }
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-const slug = (s: string) => norm(s).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+const slug = (s: string) => norm(s).replace(/œ/g, "oe").replace(/æ/g, "ae").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 const unitCodes = UNITS.map(u => u[0]).filter(Boolean);
 
 type Draft = Record<string, unknown>;
@@ -42,15 +45,19 @@ function check(d: Draft, i: number) {
   if (!CATS.includes(d.category as string)) err("catégorie « " + d.category + " » inconnue, attendu : " + CATS.join(", "));
   if (!Number.isInteger(d.time) || (d.time as number) < 0) err("time doit être un nombre entier de minutes (0 = inconnu)");
   if (!Number.isInteger(d.portions) || (d.portions as number) < 1 || (d.portions as number) > 99) err("portions doit être un entier entre 1 et 99");
-  if (!Array.isArray(d.ing) || d.ing.length === 0) err("ing doit être une liste non vide");
-  else d.ing.forEach((g: Draft, k: number) => {
+  const ready = d.readyMade === true;
+  if (d.readyMade !== undefined && typeof d.readyMade !== "boolean") err("readyMade doit être true ou false");
+  if (!Array.isArray(d.ing) && !(ready && d.ing === undefined)) err("ing doit être une liste");
+  else if (!ready && (d.ing as unknown[]).length === 0) err("ing doit être une liste non vide (sauf plat déjà préparé : readyMade: true)");
+  else (d.ing as Draft[] ?? []).forEach((g: Draft, k: number) => {
     if (typeof g.n !== "string" || !g.n.trim()) err("ingrédient " + (k + 1) + " sans nom");
     if (typeof g.q !== "number" || !(g.q >= 0)) err("ingrédient « " + g.n + " » : q doit être un nombre positif ou nul");
     if (g.u !== "" && !unitCodes.includes(g.u as string)) err("ingrédient « " + g.n + " » : unité « " + g.u + " » inconnue, attendu : " + unitCodes.join(", ") + " ou \"\"");
   });
-  if (!(typeof d.steps === "string" || (Array.isArray(d.steps) && d.steps.every(s => typeof s === "string")))) err("steps doit être un texte ou une liste de textes");
+  if (!(typeof d.steps === "string" || (Array.isArray(d.steps) && d.steps.every(s => typeof s === "string")) || (ready && d.steps === undefined))) err("steps doit être un texte ou une liste de textes");
   (d.envies as string[] | undefined ?? []).forEach(e => { if (!ENVIES.includes(e)) err("ambiance « " + e + " » inconnue, attendu : " + ENVIES.join(", ")); });
   (d.composants as string[] | undefined ?? []).forEach(c => { if (!COMPS.includes(c)) err("composant « " + c + " » inconnu, attendu : " + COMPS.join(", ")); });
+  if (ready && !d.time) warnings.push(where + " : pas de temps de cuisson (il sert au filtre « rapide » du Meal finder)");
   if (!d.envies || !(d.envies as unknown[]).length) warnings.push(where + " : aucune ambiance (le Meal finder s'en sert)");
   if (!d.composants || !(d.composants as unknown[]).length) warnings.push(where + " : aucun composant (le Meal finder s'en sert)");
 }
@@ -78,16 +85,19 @@ if (db) {
   const existing = await db.collection("recettes").get();
   const names = new Map(existing.docs.map(d => [norm(String(d.data().name || "")), d.id]));
   drafts.forEach((d, i) => {
-    if (existing.docs.some(x => x.id === ids[i])) errors.push("recette " + (i + 1) + " : l'identifiant « " + ids[i] + " » existe déjà dans la base");
+    const exists = existing.docs.some(x => x.id === ids[i]);
+    if (update) { if (!exists) errors.push("recette " + (i + 1) + " : --update, mais l'identifiant « " + ids[i] + " » n'existe pas dans la base"); }
+    else if (exists) errors.push("recette " + (i + 1) + " : l'identifiant « " + ids[i] + " » existe déjà dans la base (utilise --update pour la modifier)");
     else if (names.has(norm(String(d.name)))) warnings.push("recette " + (i + 1) + " : une recette au même nom existe déjà (« " + names.get(norm(String(d.name))) + " »)");
   });
 } else {
+  if (update) { console.error("--update demande la clé : " + KEY_PATH); process.exit(1); }
   warnings.push("pas de clé : je n'ai pas pu vérifier les doublons dans la base");
 }
 
 drafts.forEach((d, i) => {
   const ing = (d.ing as { n: string; q: number; u: string }[]) || [];
-  console.log("\n— " + ids[i] + " : " + d.name + " [" + d.category + ", " + (d.time || "?") + " min, pour " + d.portions + " pers.]");
+  console.log("\n— " + (update ? "[MODIFIE] " : "") + ids[i] + " : " + d.name + " [" + d.category + (d.readyMade ? ", PRÊT À MANGER, cuisson " : ", ") + (d.time || "?") + " min, pour " + d.portions + " pers.]");
   ing.forEach(g => console.log("    " + g.q + " " + g.u + " " + g.n));
   console.log("    ambiance : " + ((d.envies as string[]) || []).join(", ") + " | composants : " + ((d.composants as string[]) || []).join(", "));
 });
@@ -98,15 +108,20 @@ if (!write) { console.log("\nVérification OK. Rien n'a été écrit (ajoute --w
 
 let ok = 0;
 for (const [i, d] of drafts.entries()) {
-  const steps = Array.isArray(d.steps) ? (d.steps as string[]).map(s => s.trim()).filter(Boolean).join("\n") : String(d.steps).trim();
+  const steps = Array.isArray(d.steps) ? (d.steps as string[]).map(s => s.trim()).filter(Boolean).join("\n") : String(d.steps ?? "").trim();
   const data = {
     name: String(d.name).trim(), category: d.category, time: d.time, portions: d.portions,
-    ing: (d.ing as { n: string; q: number; u: string }[]).map(g => ({ n: g.n.trim(), q: g.q, u: g.u })),
+    readyMade: d.readyMade === true,
+    ing: ((d.ing ?? []) as { n: string; q: number; u: string }[]).map(g => ({ n: g.n.trim(), q: g.q, u: g.u })),
     steps, notes: typeof d.notes === "string" ? d.notes.trim() : "",
-    envies: d.envies ?? [], composants: d.composants ?? [], fav: false, createdAt: Date.now() + i
+    envies: d.envies ?? [], composants: d.composants ?? []
   };
-  try { await db!.collection("recettes").doc(ids[i]).create(data); ok++; console.log("écrite : " + ids[i]); }
+  try {
+    if (update) await db!.collection("recettes").doc(ids[i]).update(data);
+    else await db!.collection("recettes").doc(ids[i]).create({ ...data, fav: false, createdAt: Date.now() + i });
+    ok++; console.log((update ? "modifiée : " : "écrite : ") + ids[i]);
+  }
   catch (e) { console.error("ÉCHEC " + ids[i] + " : " + (e as Error).message); }
 }
-console.log("\n" + ok + " / " + drafts.length + " recette(s) écrite(s).");
+console.log("\n" + ok + " / " + drafts.length + " recette(s) " + (update ? "modifiée(s)" : "écrite(s)") + ".");
 process.exit(ok === drafts.length ? 0 : 1);

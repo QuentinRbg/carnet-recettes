@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useApp } from "../AppContext";
 import { CATS, COMPS, ENVIES, UNITS } from "../constants";
+import { usePhoto } from "../hooks/usePhoto";
 import { ingCatalog, ingOf, norm, portionsOf } from "../lib/format";
+import { processPhoto } from "../lib/image";
+import type { Photo } from "../lib/image";
 import type { CatalogEntry } from "../lib/format";
 import type { Recipe, RecipeInput } from "../types";
 
@@ -97,7 +100,10 @@ function IngredientPicker({ value, label, catalog, onText, onPick }: PickerProps
   );
 }
 
-type Props = { r: Recipe; onSave: (patch: Partial<RecipeInput>) => void; onCancel: () => void };
+/** Changement de photo : une nouvelle photo, "remove" pour l'enlever, ou rien. */
+export type PhotoChange = Photo | "remove" | undefined;
+
+type Props = { r: Recipe; onSave: (patch: Partial<RecipeInput>, photo: PhotoChange) => void; onCancel: () => void };
 
 export function EditForm({ r, onSave, onCancel }: Props) {
   const { recipes } = useApp();
@@ -106,6 +112,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
   const [cat, setCat] = useState(r.category);
   const [time, setTime] = useState(r.time ? String(r.time) : "");
   const [portions, setPortions] = useState(String(portionsOf(r)));
+  const [ready, setReady] = useState(!!r.readyMade);
   const [steps, setSteps] = useState(r.steps || "");
   const [notes, setNotes] = useState(r.notes || "");
   const [envies, setEnvies] = useState<string[]>(r.envies || []);
@@ -115,6 +122,21 @@ export function EditForm({ r, onSave, onCancel }: Props) {
     return init.length ? init : [newRow()];
   });
   const [catalog] = useState(() => ingCatalog(recipes));
+  const [newPhoto, setNewPhoto] = useState<Photo | null>(null);
+  const [removed, setRemoved] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoErr, setPhotoErr] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const current = usePhoto(r.id, r.thumb);
+  const preview = newPhoto ? newPhoto.full : removed ? undefined : current;
+
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    setPhotoErr(""); setPhotoBusy(true);
+    try { setNewPhoto(await processPhoto(file)); setRemoved(false); }
+    catch (e) { setPhotoErr(e instanceof Error ? e.message : "Photo illisible."); }
+    finally { setPhotoBusy(false); }
+  }
   const nameRef = useRef<HTMLInputElement>(null);
   const qRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const lastAdded = useRef<number | null>(null);
@@ -136,7 +158,8 @@ export function EditForm({ r, onSave, onCancel }: Props) {
     if (!n) { nameRef.current?.focus(); return; }
     const ing = rows.filter(x => x.n.trim()).map(x => ({ n: x.n.trim(), q: Number(x.q.replace(",", ".")) || 0, u: x.u }));
     const p = Math.min(99, Math.max(1, Math.round(Number(portions)) || 1));
-    onSave({ name: n, category: cat, time: Number(time) || 0, portions: p, ing, envies, composants: comps, steps: steps.trim(), notes: notes.trim() });
+    onSave({ name: n, category: cat, time: Number(time) || 0, portions: p, readyMade: ready, ing, envies, composants: comps, steps: steps.trim(), notes: notes.trim() },
+      newPhoto ?? (removed ? "remove" : undefined));
   }
 
   return (
@@ -145,13 +168,29 @@ export function EditForm({ r, onSave, onCancel }: Props) {
       <label htmlFor="e-name">Nom
         <input ref={nameRef} type="text" id="e-name" maxLength={120} value={name} onChange={e => setName(e.target.value)} />
       </label>
+      <label className="check" htmlFor="e-ready">
+        <input type="checkbox" id="e-ready" checked={ready} onChange={e => setReady(e.target.checked)} />
+        <span>Plat déjà préparé, sans recette (pizza surgelée…)</span>
+      </label>
+      <div className="form">
+        <span className="label-up">Photo</span>
+        {preview ? <img className="hero" src={preview} alt="" /> : null}
+        <div className="actions">
+          <button className="btn small" type="button" disabled={photoBusy} onClick={() => fileRef.current?.click()}>
+            {photoBusy ? "Traitement…" : preview ? "Changer la photo" : "Ajouter une photo"}
+          </button>
+          {preview ? <button className="btn small danger" type="button" disabled={photoBusy} onClick={() => { setNewPhoto(null); setRemoved(true); }}>Retirer la photo</button> : null}
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; pickPhoto(f); }} />
+        </div>
+        {photoErr ? <p className="hint">{photoErr}</p> : null}
+      </div>
       <div className="two">
         <label htmlFor="e-cat">Catégorie
           <select id="e-cat" value={cat} onChange={e => setCat(e.target.value)}>
             {CATS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
-        <label htmlFor="e-time">Temps total (minutes)
+        <label htmlFor="e-time">{ready ? "Temps de cuisson (minutes)" : "Temps total (minutes)"}
           <input type="number" id="e-time" min={0} inputMode="numeric" value={time} onChange={e => setTime(e.target.value)} />
         </label>
       </div>
@@ -161,7 +200,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
       </label>
 
       <div className="form">
-        <span className="label-up">Ingrédients, pour {Math.max(1, Math.round(Number(portions)) || 1)} {Number(portions) > 1 ? "personnes" : "personne"}</span>
+        <span className="label-up">{ready ? "À acheter" : "Ingrédients"}, pour {Math.max(1, Math.round(Number(portions)) || 1)} {Number(portions) > 1 ? "personnes" : "personne"}</span>
         <div className="ing-rows" ref={rowsBox}>
           {rows.map((row, i) => (
             <div className="ing-row" key={row.id}>
@@ -183,7 +222,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
         </div>
       </div>
 
-      <label htmlFor="e-steps">Préparation
+      <label htmlFor="e-steps">{ready ? "Cuisson (facultatif)" : "Préparation"}
         <AutoTextarea id="e-steps" placeholder="Une étape par ligne" value={steps} onChange={setSteps} minHeight={320} />
       </label>
       <label htmlFor="e-notes">Notes
@@ -199,7 +238,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
         <ChipGroup options={COMPS} sel={comps} onToggle={toggle(setComps)} />
       </div>
       <div className="actions">
-        <button className="btn primary" type="submit">Enregistrer</button>
+        <button className="btn primary" type="submit" disabled={photoBusy}>Enregistrer</button>
         <button className="btn" type="button" onClick={onCancel}>Annuler</button>
       </div>
     </form>

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useApp } from "../AppContext";
 import { CartIcon, ReloadIcon } from "../components/Icons";
 import { ALERTS, ENVIE_HINT } from "../constants";
+import { usePhoto } from "../hooks/usePhoto";
 import { fmtTime, norm } from "../lib/format";
 import {
   QUIZ, haveOptions, newFinder, nextIdea, propose, withAvailable
@@ -153,9 +154,11 @@ function HavePicker({ finder, update }: { finder: Finder; update: Update }) {
 function Result({ finder, update, reset }: { finder: Finder; update: Update; reset: Props["reset"] }) {
   const { recipes, go, openCart } = useApp();
   const c = finder.cur!, r = c.r, a = finder.a;
+  const photo = usePhoto(r.id, r.thumb);
   return (
     <>
       <div className="panel">
+        {photo ? <img className="hero" src={photo} alt="" /> : null}
         <span className="label-up">{finder.shown.length > 1 ? "Proposition " + finder.shown.length : "Ma proposition"}</span>
         <h2 className="pick-name">{r.name}</h2>
         <div className="why">
@@ -230,7 +233,12 @@ function AlertScreen({ finder, update }: { finder: Finder; update: Update }) {
       <div className="choices">
         {al.actions.map(act => (
           <Choice key={act.label} label={act.label} pressed={false} onClick={() => update(f => {
-            if (act.kind === "ideas") { f.idea = { act, i: -1 }; nextIdea(f); f.phase = "ideas"; }
+            if (act.kind === "ideas") {
+              // « Plat déjà préparé » : on ajoute ceux du carnet aux idées de base.
+              const own = act.withReadyMade ? recipes.filter(r => r.readyMade).map(r => r.name) : [];
+              const items = [...act.items, ...own.filter(n => !act.items.includes(n))];
+              f.idea = { act: { ...act, items }, i: -1 }; nextIdea(f); f.phase = "ideas";
+            }
             else { f.mode = act.mode; f.shown = []; f.rej = []; propose(f, recipes); }
           })} />
         ))}

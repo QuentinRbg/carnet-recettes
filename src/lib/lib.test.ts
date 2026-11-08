@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, fmtTime, norm, portionsOf, qtyText } from "./format";
+import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./format";
 import { newFinder, propose, rank } from "./finder";
 import type { Recipe } from "../types";
+import { fitSize } from "./image";
 
 const base = { category: "Plat", time: 20, steps: "", notes: "", fav: false, createdAt: 0, envies: [], composants: [] };
 const r = (id: string, over: Partial<Recipe>): Recipe => ({ id, name: id, ...base, ...over });
@@ -49,6 +50,23 @@ describe("aggregate", () => {
   });
 });
 
+describe("plat déjà préparé", () => {
+  it("n'est pas « à compléter » même sans ingrédients ni étapes", () => {
+    expect(isComplete(r("v", {}))).toBe(false);
+    expect(isComplete(r("p", { readyMade: true }))).toBe(true);
+    expect(isComplete(r("i", { ing: [{ n: "Sel", q: 1, u: "pincée" }] }))).toBe(true);
+  });
+  it("sans ingrédients, il ne change pas la liste de courses", () => {
+    const pizza = r("pizza", { readyMade: true, time: 10 });
+    expect(aggregate({ items: [{ rid: "pizza", n: 2 }], checked: [] }, [pizza])).toEqual([]);
+  });
+  it("sert au filtre « rapide » grâce à son temps de cuisson", () => {
+    const pizza = r("pizza", { readyMade: true, time: 10 });
+    const f = newFinder(); f.a.fast = true;
+    expect(rank(f, [pizza, r("long", { time: 90 })]).map(x => x.r.id)).toEqual(["pizza"]);
+  });
+});
+
 describe("meal finder", () => {
   const recipes = [
     r("rapide", { time: 15, composants: ["Riz"] }),
@@ -71,5 +89,14 @@ describe("meal finder", () => {
     expect(new Set(f.shown).size).toBe(3);
     propose(f, recipes);
     expect(f.phase).toBe("none");
+  });
+});
+
+describe("photo", () => {
+  it("réduit sans déformer ni agrandir", () => {
+    expect(fitSize(4000, 3000, 1200)).toEqual({ w: 1200, h: 900 });
+    expect(fitSize(3000, 4000, 240)).toEqual({ w: 180, h: 240 });
+    expect(fitSize(300, 200, 1200)).toEqual({ w: 300, h: 200 });
+    expect(fitSize(1, 5000, 100).w).toBe(1);
   });
 });

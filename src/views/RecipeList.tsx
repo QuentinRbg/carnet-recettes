@@ -4,14 +4,17 @@ import { useApp } from "../AppContext";
 import { CartButton } from "../components/CartButton";
 import { Dialog } from "../components/Dialog";
 import { CATS } from "../constants";
-import { fmtTime, ingOf, lines, norm } from "../lib/format";
+import { fmtTime, ingOf, isComplete, norm } from "../lib/format";
 import type { Recipe } from "../types";
+
+const READY = "Prêt à manger";
 
 export type ListUi = { filterCat: string; query: string };
 
 function matches(r: Recipe, ui: ListUi): boolean {
   if (ui.filterCat === "Favorites" && !r.fav) return false;
-  if (ui.filterCat !== "Toutes" && ui.filterCat !== "Favorites" && r.category !== ui.filterCat) return false;
+  if (ui.filterCat === READY && !r.readyMade) return false;
+  if (ui.filterCat !== "Toutes" && ui.filterCat !== "Favorites" && ui.filterCat !== READY && r.category !== ui.filterCat) return false;
   if (!ui.query.trim()) return true;
   const q = norm(ui.query.trim());
   if (norm(r.name).includes(q) || norm(r.category).includes(q)) return true;
@@ -39,8 +42,8 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
         <button className="btn primary" type="button" onClick={() => setAdding(true)}>Ajouter</button>
       </div>
       <div className="chips" role="group" aria-label="Filtrer par catégorie">
-        {["Toutes", "Favorites", ...CATS].map(c => {
-          const n = recipes.filter(r => c === "Toutes" ? true : c === "Favorites" ? r.fav : r.category === c).length;
+        {["Toutes", "Favorites", READY, ...CATS].map(c => {
+          const n = recipes.filter(r => c === "Toutes" ? true : c === "Favorites" ? r.fav : c === READY ? !!r.readyMade : r.category === c).length;
           if (n === 0 && c !== "Toutes" && c !== ui.filterCat) return null;
           return (
             <button key={c} className="chip" type="button" aria-pressed={ui.filterCat === c}
@@ -50,14 +53,16 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
       </div>
       <ul className="list">
         {shown.map(r => {
-          const done = ingOf(r).length > 0 || lines(r.steps).length > 0;
+          const done = isComplete(r);
           return (
             <li key={r.id} className="card">
+              {r.thumb ? <img className="thumb" src={r.thumb} alt="" loading="lazy" /> : null}
               <button className="card-main" type="button" onClick={() => go("r-" + r.id)}>
                 <span className="name">{r.name}</span>
                 <span className="meta">
                   <span className="tag">{r.category || "Autre"}</span>
-                  {r.time ? <span>{fmtTime(r.time)}</span> : null}
+                  {r.readyMade ? <span className="tag">prêt à manger</span> : null}
+                  {r.time ? <span>{r.readyMade ? "cuisson " : ""}{fmtTime(r.time)}</span> : null}
                   {done ? null : <span className="tag todo">à compléter</span>}
                 </span>
               </button>
@@ -82,6 +87,7 @@ function AddDialog({ initialName, onClose }: { initialName: string; onClose: () 
   const [name, setName] = useState(initialName);
   const [cat, setCat] = useState(readLastCat);
   const [time, setTime] = useState("");
+  const [ready, setReady] = useState(false);
   const [err, setErr] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => { nameRef.current?.focus(); nameRef.current?.select(); }, []);
@@ -91,7 +97,7 @@ function AddDialog({ initialName, onClose }: { initialName: string; onClose: () 
     const n = name.trim();
     if (!n) { nameRef.current?.focus(); return; }
     try { localStorage.setItem("recettes.cat", cat); } catch { /* pas de stockage disponible */ }
-    addRecipe({ name: n, category: cat, time: Number(time) || 0, portions: 1, ing: [], steps: "", notes: "", envies: [], composants: [], fav: false, createdAt: Date.now() })
+    addRecipe({ name: n, category: cat, time: Number(time) || 0, portions: 1, readyMade: ready, ing: [], steps: "", notes: "", envies: [], composants: [], fav: false, createdAt: Date.now() })
       .then(() => { onClose(); toast("« " + n + " » ajoutée"); })
       .catch(() => setErr("Ajout impossible, réessaie."));
   }
@@ -109,10 +115,14 @@ function AddDialog({ initialName, onClose }: { initialName: string; onClose: () 
               {CATS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
-          <label htmlFor="newTime">Temps total (minutes)
+          <label htmlFor="newTime">{ready ? "Temps de cuisson (minutes)" : "Temps total (minutes)"}
             <input type="number" id="newTime" min={0} inputMode="numeric" placeholder="Minutes" value={time} onChange={e => setTime(e.target.value)} />
           </label>
         </div>
+        <label className="check" htmlFor="newReady">
+          <input type="checkbox" id="newReady" checked={ready} onChange={e => setReady(e.target.checked)} />
+          <span>Plat déjà préparé, sans recette (pizza surgelée…)</span>
+        </label>
         <p className="hint">{err}</p>
         <div className="actions" style={{ justifyContent: "flex-end" }}>
           <button className="btn" type="button" onClick={onClose}>Annuler</button>
