@@ -3,14 +3,13 @@ import type { ChangeEvent } from "react";
 import { signOut } from "firebase/auth";
 import { AppContext } from "./AppContext";
 import type { AppCtx } from "./AppContext";
-import { ConfirmBox, Dialog } from "./components/Dialog";
-import { Stepper } from "./components/Stepper";
+import { CartDrawer } from "./components/CartDrawer";
+import { ConfirmBox } from "./components/Dialog";
 import { useToast } from "./components/Toast";
 import { auth } from "./firebase";
 import { useAuth } from "./hooks/useAuth";
 import { useData } from "./hooks/useData";
 import { finderBusy, newFinder } from "./lib/finder";
-import { portionsOf } from "./lib/format";
 import type { Finder } from "./lib/finder";
 import { currentHash, getRoute } from "./lib/route";
 import type { Cart, Recipe } from "./types";
@@ -145,7 +144,7 @@ function Main() {
         </footer>
       </main>
 
-      {cartFor ? <CartDialog r={cartFor} onClose={() => setCartFor(null)} onAdd={n => { data.addToCart(cartFor, n); setCartFor(null); }} /> : null}
+      {cartFor ? <CartDrawer r={cartFor} onClose={() => setCartFor(null)} onAdd={n => { data.addToCart(cartFor, n); setCartFor(null); }} /> : null}
       {delFor ? (
         <ConfirmBox title="Supprimer cette recette ?" text={"« " + delFor.name + " » sera supprimée définitivement."}
           okLabel="Supprimer" danger onCancel={() => setDelFor(null)}
@@ -169,21 +168,5 @@ function Main() {
       ) : null}
       {toastNode}
     </AppContext.Provider>
-  );
-}
-
-function CartDialog({ r, onClose, onAdd }: { r: Recipe; onClose: () => void; onAdd: (n: number) => void }) {
-  const [n, setN] = useState(() => portionsOf(r));
-  return (
-    <Dialog title="Ajouter au panier" titleId="dlgTitle" sub={r.name} onClose={onClose}>
-      <div className="portions">
-        <span>Pour combien de personnes ?</span>
-        <Stepper value={n} min={1} max={99} onChange={setN} />
-      </div>
-      <div className="actions" style={{ justifyContent: "flex-end" }}>
-        <button className="btn" type="button" onClick={onClose}>Annuler</button>
-        <button className="btn primary" type="button" autoFocus onClick={() => onAdd(n)}>Ajouter au panier</button>
-      </div>
-    </Dialog>
   );
 }
