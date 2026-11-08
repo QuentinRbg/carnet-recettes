@@ -168,6 +168,9 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; background: var(--bg); flex-wrap: wrap; }
 .seg button { border: 0; background: transparent; padding: 8px 14px; border-radius: 9px; cursor: pointer; font-weight: 500; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); font-weight: 700; }
+/* Sélecteur pleine largeur : les options se partagent toute la largeur du menu */
+.seg.full { display: flex; flex-wrap: nowrap; width: 100%; }
+.seg.full button { flex: 1; padding: 12px 10px; }
 .why { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag.alt { background: var(--warn-soft); color: var(--warn); }
 .owned { margin: 0; font-size: .9rem; color: var(--muted); }

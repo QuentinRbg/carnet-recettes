@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useDrawerBehavior } from "../hooks/useDrawerBehavior";
 import { fmtTime, ingOf, norm } from "../lib/format";
 import { inSeason } from "../lib/season";
@@ -18,8 +18,6 @@ export function RecipePicker({ recipes, taken, onPick, onClose }: Props) {
   useDrawerBehavior(onClose);
   const [query, setQuery] = useState("");
   const [seasonOnly, setSeasonOnly] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => { input.current?.focus(); }, []);
 
   const q = norm(query.trim());
   const shown = recipes.filter(r => {
@@ -35,7 +33,7 @@ export function RecipePicker({ recipes, taken, onPick, onClose }: Props) {
         <button className="icon-btn drawer-close" type="button" aria-label="Fermer" onClick={onClose}>×</button>
         <div className="drawer-body">
           <h2 id="pickerTitle">Choisir un plat</h2>
-          <input ref={input} type="search" placeholder="Rechercher…" aria-label="Rechercher une recette" value={query} onChange={e => setQuery(e.target.value)} />
+          <input type="search" placeholder="Rechercher…" aria-label="Rechercher une recette" value={query} onChange={e => setQuery(e.target.value)} />
           <div className="chips">
             <button className="chip" type="button" aria-pressed={seasonOnly} onClick={() => setSeasonOnly(!seasonOnly)}>De saison</button>
           </div>
