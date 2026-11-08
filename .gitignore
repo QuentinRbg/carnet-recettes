@@ -12,3 +12,4 @@ dist
 service-account*.json
 *-firebase-adminsdk-*.json
 recettes-a-ajouter*.json
+recettes-a-modifier*.json

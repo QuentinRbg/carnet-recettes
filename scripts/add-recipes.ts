@@ -3,6 +3,8 @@
 //
 //   node scripts/add-recipes.ts recettes-a-ajouter.json            vérifie et affiche, n'écrit rien
 //   node scripts/add-recipes.ts recettes-a-ajouter.json --write    écrit dans la base
+//   ... --update                                                   modifie des recettes déjà en base (même identifiant),
+//                                                                  en gardant favori et date de création
 //
 // La clé est cherchée dans cet ordre : CARNET_KEY=chemin, puis un fichier service-account*.json ou
 // *-firebase-adminsdk-*.json à la racine du dépôt (ignoré par git), puis ~/.config/carnet-recettes/service-account.json.
@@ -25,6 +27,7 @@ const KEY_PATH = findKey();
 
 const [file, ...flags] = process.argv.slice(2);
 const write = flags.includes("--write");
+const update = flags.includes("--update");
 if (!file) { console.error("Usage : node scripts/add-recipes.ts <fichier.json> [--write]"); process.exit(1); }
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -78,16 +81,19 @@ if (db) {
   const existing = await db.collection("recettes").get();
   const names = new Map(existing.docs.map(d => [norm(String(d.data().name || "")), d.id]));
   drafts.forEach((d, i) => {
-    if (existing.docs.some(x => x.id === ids[i])) errors.push("recette " + (i + 1) + " : l'identifiant « " + ids[i] + " » existe déjà dans la base");
+    const exists = existing.docs.some(x => x.id === ids[i]);
+    if (update) { if (!exists) errors.push("recette " + (i + 1) + " : --update, mais l'identifiant « " + ids[i] + " » n'existe pas dans la base"); }
+    else if (exists) errors.push("recette " + (i + 1) + " : l'identifiant « " + ids[i] + " » existe déjà dans la base (utilise --update pour la modifier)");
     else if (names.has(norm(String(d.name)))) warnings.push("recette " + (i + 1) + " : une recette au même nom existe déjà (« " + names.get(norm(String(d.name))) + " »)");
   });
 } else {
+  if (update) { console.error("--update demande la clé : " + KEY_PATH); process.exit(1); }
   warnings.push("pas de clé : je n'ai pas pu vérifier les doublons dans la base");
 }
 
 drafts.forEach((d, i) => {
   const ing = (d.ing as { n: string; q: number; u: string }[]) || [];
-  console.log("\n— " + ids[i] + " : " + d.name + " [" + d.category + ", " + (d.time || "?") + " min, pour " + d.portions + " pers.]");
+  console.log("\n— " + (update ? "[MODIFIE] " : "") + ids[i] + " : " + d.name + " [" + d.category + ", " + (d.time || "?") + " min, pour " + d.portions + " pers.]");
   ing.forEach(g => console.log("    " + g.q + " " + g.u + " " + g.n));
   console.log("    ambiance : " + ((d.envies as string[]) || []).join(", ") + " | composants : " + ((d.composants as string[]) || []).join(", "));
 });
@@ -103,10 +109,14 @@ for (const [i, d] of drafts.entries()) {
     name: String(d.name).trim(), category: d.category, time: d.time, portions: d.portions,
     ing: (d.ing as { n: string; q: number; u: string }[]).map(g => ({ n: g.n.trim(), q: g.q, u: g.u })),
     steps, notes: typeof d.notes === "string" ? d.notes.trim() : "",
-    envies: d.envies ?? [], composants: d.composants ?? [], fav: false, createdAt: Date.now() + i
+    envies: d.envies ?? [], composants: d.composants ?? []
   };
-  try { await db!.collection("recettes").doc(ids[i]).create(data); ok++; console.log("écrite : " + ids[i]); }
+  try {
+    if (update) await db!.collection("recettes").doc(ids[i]).update(data);
+    else await db!.collection("recettes").doc(ids[i]).create({ ...data, fav: false, createdAt: Date.now() + i });
+    ok++; console.log((update ? "modifiée : " : "écrite : ") + ids[i]);
+  }
   catch (e) { console.error("ÉCHEC " + ids[i] + " : " + (e as Error).message); }
 }
-console.log("\n" + ok + " / " + drafts.length + " recette(s) écrite(s).");
+console.log("\n" + ok + " / " + drafts.length + " recette(s) " + (update ? "modifiée(s)" : "écrite(s)") + ".");
 process.exit(ok === drafts.length ? 0 : 1);
