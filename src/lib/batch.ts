@@ -18,6 +18,11 @@ export function defaultBatch(): Batch {
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+/** Les plats d'abord, puis les cases libres, sans changer l'ordre des plats : jamais de trou entre deux plats. */
+export function compactSlots(slots: BatchSlot[]): BatchSlot[] {
+  return [...slots.filter(s => s.rid), ...slots.filter(s => !s.rid)];
+}
+
 /** Remet en forme ce qui vient de Firestore (document absent, ancien ou abîmé). */
 export function normalizeBatch(d: unknown): Batch {
   if (!d || typeof d !== "object") return defaultBatch();
@@ -26,7 +31,7 @@ export function normalizeBatch(d: unknown): Batch {
     ? x.slots.slice(0, MAX_SLOTS).map((s: { rid?: unknown } | null) => ({ rid: s && typeof s.rid === "string" ? s.rid : "" }))
     : defaultBatch().slots;
   return {
-    slots: slots.length ? slots : defaultBatch().slots,
+    slots: slots.length ? compactSlots(slots) : defaultBatch().slots,
     checked: Array.isArray(x.checked) ? x.checked.filter((k): k is string => typeof k === "string") : [],
     persons: clamp(Math.round(Number(x.persons)) || 2, 1, 99)
   };
@@ -53,9 +58,22 @@ export function batchToCart(b: Batch): Cart {
   return { items: filledSlots(b).map(s => ({ rid: s.rid, n: b.persons })), checked: b.checked };
 }
 
-/** Vide les cases qui pointent vers une recette supprimée. */
+/** Vide les cases qui pointent vers une recette supprimée : les plats suivants remontent. */
 export function dropRecipe(b: Batch, rid: string): Batch {
-  return { ...b, slots: b.slots.map(s => (s.rid === rid ? emptySlot() : s)) };
+  return { ...b, slots: compactSlots(b.slots.map(s => (s.rid === rid ? emptySlot() : s))) };
+}
+
+/** Retire le plat d'une case : tous les plats d'après remontent d'une case, il n'y a pas de trou. */
+export function clearSlot(b: Batch, index: number): Batch {
+  return { ...b, slots: compactSlots(b.slots.map((s, i) => (i === index ? emptySlot() : s))) };
+}
+
+/**
+ * Met une recette dans une case. Sur une case occupée, elle remplace le plat à sa place.
+ * Sur une case libre, elle prend la première case libre : les plats restent groupés au début.
+ */
+export function setSlot(b: Batch, index: number, rid: string): Batch {
+  return { ...b, slots: compactSlots(b.slots.map((s, i) => (i === index ? { rid } : s))) };
 }
 
 /** Une recette tirée au hasard occupe 2 ou 3 cases : en batch cooking, on cuisine un plat pour plusieurs repas. */
@@ -103,7 +121,7 @@ export function fillRandom(b: Batch, candidates: string[], rand: () => number = 
   sizes.forEach((size, g) => {
     for (let k = 0; k < size; k++) slots[free[at++]] = { rid: pool[g] };
   });
-  return { ...b, slots };
+  return { ...b, slots: compactSlots(slots) };
 }
 
 /**
@@ -121,7 +139,7 @@ export function addPortion(b: Batch, index: number): Batch {
   let last = free < index ? index - 1 : index;
   while (slots[last + 1]?.rid === rid) last++;
   slots.splice(last + 1, 0, { rid });
-  return { ...b, slots };
+  return { ...b, slots: compactSlots(slots) };
 }
 
 /** Il reste au moins une case libre : on peut ajouter une portion. */

@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 import { PlateIcon } from "../components/Icons";
+import { RecipeDrawer } from "../components/RecipeDrawer";
 import { RecipePicker } from "../components/RecipePicker";
 import { ShopList } from "../components/ShopList";
 import { Stepper } from "../components/Stepper";
 import { CoursesSwitch } from "./Courses";
-import { MAX_SLOTS, MIN_SLOTS, addPortion, batchToCart, fillRandom, filledSlots, hasFreeSlot, resizeSlots } from "../lib/batch";
+import { MAX_SLOTS, MIN_SLOTS, addPortion, batchToCart, clearSlot, fillRandom, filledSlots, hasFreeSlot, resizeSlots, setSlot } from "../lib/batch";
 import { aggregate, fmtTime, lines } from "../lib/format";
 
 /** Batch cooking : on choisit le nombre de plats, on remplit les cases, et on obtient la liste de courses et les recettes. */
 export function Batch() {
   const { recipes, loaded, batch, updateBatch, go } = useApp();
   const [picking, setPicking] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<number | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const byId = (id: string) => recipes.find(r => r.id === id);
@@ -51,7 +53,7 @@ export function Batch() {
               <span className="slot-num" aria-hidden="true">{i + 1}</span>
               {r ? (
                 <>
-                  <button className="card-main" type="button" aria-label={"Changer le plat " + (i + 1) + " : " + r.name} onClick={() => setPicking(i)}>
+                  <button className="card-main" type="button" aria-label={"Voir la recette du plat " + (i + 1) + " : " + r.name} onClick={() => setViewing(i)}>
                     {r.thumb ? <img className="card-img" src={r.thumb} alt="" loading="lazy" /> : <span className="card-img ph"><PlateIcon /></span>}
                     <span className="card-body">
                       <span className="name">{r.name}</span>
@@ -59,7 +61,7 @@ export function Batch() {
                     </span>
                   </button>
                   <button className="icon-btn cart" type="button" aria-label={"Retirer le plat " + (i + 1)}
-                    onClick={() => updateBatch(b => ({ ...b, slots: b.slots.map((x, k) => k === i ? { rid: "" } : x) }))}>×</button>
+                    onClick={() => updateBatch(b => clearSlot(b, i))}>×</button>
                   <div className="slot-foot">
                     <button className="btn small" type="button" disabled={!hasFreeSlot(batch)}
                       aria-label={"Ajouter une portion de " + r.name + " (prend une case libre)"}
@@ -144,13 +146,21 @@ export function Batch() {
         </>
       )}
 
+      {viewing !== null && byId(batch.slots[viewing]?.rid) ? (
+        <RecipeDrawer r={byId(batch.slots[viewing].rid)!} persons={batch.persons}
+          cases={batch.slots.filter(s => s.rid === batch.slots[viewing].rid).length}
+          onClose={() => setViewing(null)}
+          onChange={() => { const i = viewing; setViewing(null); setPicking(i); }}
+          onOpen={() => go("r-" + batch.slots[viewing].rid)} />
+      ) : null}
+
       {picking !== null ? (
         <RecipePicker recipes={recipes} taken={filledSlots(batch).map(s => s.rid)}
           onClose={() => setPicking(null)}
           onPick={r => {
             const i = picking;
             setPicking(null);
-            updateBatch(b => ({ ...b, slots: b.slots.map((x, k) => k === i ? { rid: r.id } : x) }));
+            updateBatch(b => setSlot(b, i, r.id));
           }} />
       ) : null}
     </section>

@@ -6,7 +6,7 @@ import { recipeMatches, toggleFilter } from "./filters";
 import { emojiFor, emojiKey, emojiOf, FALLBACK_EMOJI, firstEmoji, normalizeEmojis } from "./emoji";
 import { RAYONS, rayonFor } from "./rayon";
 import type { RayonId } from "./rayon";
-import { addPortion, batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, hasFreeSlot, normalizeBatch, randomGroups, resizeSlots } from "./batch";
+import { addPortion, batchToCart, clearSlot, compactSlots, defaultBatch, dropRecipe, fillRandom, filledSlots, hasFreeSlot, normalizeBatch, randomGroups, resizeSlots, setSlot } from "./batch";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
 
@@ -229,8 +229,32 @@ describe("batch cooking", () => {
     expect(un).toBe(200);
     expect(trois).toBe(600);
   });
-  it("vide les cases d'une recette supprimée", () => {
-    expect(ids(dropRecipe(plan(["a", "b", "a"]), "a"))).toEqual(["", "b", ""]);
+  it("vide les cases d'une recette supprimée, et les plats d'après remontent", () => {
+    expect(ids(dropRecipe(plan(["a", "b", "a", "c"]), "a"))).toEqual(["b", "c", "", ""]);
+  });
+
+  it("range les plats d'abord, les cases libres ensuite, sans changer l'ordre des plats", () => {
+    expect(compactSlots([{ rid: "" }, { rid: "a" }, { rid: "" }, { rid: "b" }, { rid: "c" }]).map(x => x.rid)).toEqual(["a", "b", "c", "", ""]);
+    expect(compactSlots([{ rid: "a" }, { rid: "b" }]).map(x => x.rid)).toEqual(["a", "b"]);
+    expect(compactSlots([]).length).toBe(0);
+  });
+  it("retirer un plat fait remonter tous les suivants : pas de trou", () => {
+    const b = plan(["a", "b", "c", "d", "", ""]);
+    expect(ids(clearSlot(b, 1))).toEqual(["a", "c", "d", "", "", ""]);
+    expect(ids(clearSlot(b, 0))).toEqual(["b", "c", "d", "", "", ""]);
+    expect(ids(clearSlot(b, 3))).toEqual(["a", "b", "c", "", "", ""]);
+    expect(clearSlot(b, 1).slots).toHaveLength(6);
+  });
+  it("retirer un des plats d'une même recette garde les autres côte à côte", () => {
+    expect(ids(clearSlot(plan(["a", "a", "a", "b", ""]), 1))).toEqual(["a", "a", "b", "", ""]);
+  });
+  it("mettre une recette dans une case libre la place à la suite des plats, même si on a touché une case plus loin", () => {
+    const b = plan(["a", "b", "", "", ""]);
+    expect(ids(setSlot(b, 4, "c"))).toEqual(["a", "b", "c", "", ""]);
+    expect(ids(setSlot(b, 2, "c"))).toEqual(["a", "b", "c", "", ""]);
+  });
+  it("mettre une recette sur une case occupée la remplace à sa place", () => {
+    expect(ids(setSlot(plan(["a", "b", "c", ""]), 1, "z"))).toEqual(["a", "z", "c", ""]);
   });
 
   it("ajouter une portion prend une case libre et se place juste après la recette", () => {
@@ -318,11 +342,15 @@ describe("batch cooking", () => {
     expect(fillRandom(plein, ["b", "c"], () => 0.5)).toBe(plein);
   });
 
+  it("un ancien plan avec des trous est rangé à la lecture : les plats d'abord", () => {
+    const n = normalizeBatch({ slots: [{ rid: "" }, { rid: "a" }, { rid: "" }, { rid: "b" }], persons: 2 });
+    expect(n.slots.map(x => x.rid)).toEqual(["a", "b", "", ""]);
+  });
   it("remet en forme un document abîmé, absent ou ancien (cases avec un nombre de personnes)", () => {
     expect(normalizeBatch(null)).toEqual(defaultBatch());
     expect(normalizeBatch({ slots: "x" }).slots).toHaveLength(6);
     const n = normalizeBatch({ slots: [null, { rid: "a", n: 500 }, { rid: 3 }], checked: ["k", 4], persons: 0 });
-    expect(n.slots).toEqual([{ rid: "" }, { rid: "a" }, { rid: "" }]);
+    expect(n.slots).toEqual([{ rid: "a" }, { rid: "" }, { rid: "" }]);
     expect(n.checked).toEqual(["k"]);
     expect(n.persons).toBe(2);
   });
