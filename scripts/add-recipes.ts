@@ -28,7 +28,7 @@ const write = flags.includes("--write");
 if (!file) { console.error("Usage : node scripts/add-recipes.ts <fichier.json> [--write]"); process.exit(1); }
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-const slug = (s: string) => norm(s).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+const slug = (s: string) => norm(s).replace(/œ/g, "oe").replace(/æ/g, "ae").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 const unitCodes = UNITS.map(u => u[0]).filter(Boolean);
 
 type Draft = Record<string, unknown>;
