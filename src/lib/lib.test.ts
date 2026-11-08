@@ -169,6 +169,17 @@ describe("filtres de la liste", () => {
     expect([A, B, C].filter(x => recipeMatches(x, ["Prêt à manger"])).map(x => x.id)).toEqual(["c"]);
     expect([A, B, C].filter(x => recipeMatches(x, ["Prêt à manger", "Favorites"])).length).toBe(0);
   });
+  it("Rapide : 30 minutes au maximum, un temps inconnu n'est pas rapide", () => {
+    const vite = r("vite", { time: 10 }), limite = r("limite", { time: 30 }), long = r("long", { time: 31 }), inconnu = r("inconnu", { time: 0 });
+    expect([vite, limite, long, inconnu].filter(x => recipeMatches(x, ["Rapide"])).map(x => x.id)).toEqual(["vite", "limite"]);
+  });
+  it("Rapide se cumule avec les autres filtres", () => {
+    const a = r("a", { time: 20, category: "Plat", envies: ["Healthy"], saisons: ["Automne"] });
+    const b = r("b", { time: 20, category: "Dessert", envies: ["Healthy"] });
+    const c = r("c", { time: 60, category: "Plat", envies: ["Healthy"], saisons: ["Automne"] });
+    expect([a, b, c].filter(x => recipeMatches(x, ["Rapide", "Plat", "Healthy", "De saison"], "Automne")).map(x => x.id)).toEqual(["a"]);
+    expect([a, b, c].filter(x => recipeMatches(x, ["Rapide", "Healthy"])).map(x => x.id)).toEqual(["a", "b"]);
+  });
   it("coche et décoche un filtre", () => {
     expect(toggleFilter([], "Gourmand")).toEqual(["Gourmand"]);
     expect(toggleFilter(["Gourmand", "Plat"], "Gourmand")).toEqual(["Plat"]);

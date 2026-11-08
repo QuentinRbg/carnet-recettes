@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useDrawerBehavior } from "../hooks/useDrawerBehavior";
 import { fmtTime, ingOf, norm } from "../lib/format";
-import { inSeason } from "../lib/season";
+import { recipeMatches } from "../lib/filters";
 import type { Recipe } from "../types";
+import { FilterChips } from "./FilterChips";
 import { PlateIcon } from "./Icons";
 
 type Props = {
@@ -13,15 +14,15 @@ type Props = {
   onClose: () => void;
 };
 
-/** Tiroir « Choisir un plat » : recherche, filtre « De saison », puis un toucher sur la recette. */
+/** Tiroir « Choisir un plat » : recherche et les mêmes filtres que la liste des recettes (dont « De saison » et « Rapide »), puis un toucher sur la recette. */
 export function RecipePicker({ recipes, taken, onPick, onClose }: Props) {
   useDrawerBehavior(onClose);
   const [query, setQuery] = useState("");
-  const [seasonOnly, setSeasonOnly] = useState(false);
+  const [filters, setFilters] = useState<string[]>([]);
 
   const q = norm(query.trim());
   const shown = recipes.filter(r => {
-    if (seasonOnly && !inSeason(r)) return false;
+    if (!recipeMatches(r, filters)) return false;
     if (!q) return true;
     return norm(r.name).includes(q) || norm(r.category).includes(q) || ingOf(r).some(g => norm(g.n).includes(q));
   });
@@ -34,9 +35,7 @@ export function RecipePicker({ recipes, taken, onPick, onClose }: Props) {
         <div className="drawer-body">
           <h2 id="pickerTitle">Choisir un plat</h2>
           <input type="search" placeholder="Rechercher…" aria-label="Rechercher une recette" value={query} onChange={e => setQuery(e.target.value)} />
-          <div className="chips">
-            <button className="chip" type="button" aria-pressed={seasonOnly} onClick={() => setSeasonOnly(!seasonOnly)}>De saison</button>
-          </div>
+          <FilterChips recipes={recipes} filters={filters} onChange={setFilters} />
           <ul className="pick-list">
             {shown.map(r => (
               <li key={r.id}>
