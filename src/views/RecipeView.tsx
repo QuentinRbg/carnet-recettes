@@ -3,14 +3,15 @@ import { useApp } from "../AppContext";
 import { CartButton } from "../components/CartButton";
 import { BackIcon, PencilIcon, TrashIcon } from "../components/Icons";
 import { Stepper } from "../components/Stepper";
-import { fmtTime, ingOf, lines, qtyText } from "../lib/format";
+import { fmtTime, ingOf, lines, portionsOf, qtyText } from "../lib/format";
 import { EditForm } from "./EditForm";
 
 export function RecipeView({ id }: { id: string }) {
   const { recipes, loaded, go, saveRecipe, askDelete } = useApp();
   const r = recipes.find(x => x.id === id);
   const [editing, setEditing] = useState(false);
-  const [viewN, setViewN] = useState(1);
+  // null = pas touché : on affiche la recette pour son nombre de personnes recommandé.
+  const [pickedN, setViewN] = useState<number | null>(null);
 
   const topbar = (
     <div className="topbar">
@@ -51,6 +52,8 @@ export function RecipeView({ id }: { id: string }) {
   }
 
   const ing = ingOf(r), steps = lines(r.steps);
+  const base = portionsOf(r);
+  const viewN = pickedN ?? base;
   return (
     <section className="view">
       {topbar}
@@ -59,6 +62,7 @@ export function RecipeView({ id }: { id: string }) {
         <p className="meta" style={{ margin: "8px 0 0" }}>
           <span className="tag">{r.category || "Autre"}</span>
           {r.time ? <span>{fmtTime(r.time)}</span> : null}
+          {base > 1 ? <span>{base} pers.</span> : null}
           {(r.envies || []).map(x => <span key={x} className="tag alt">{x}</span>)}
           {(r.composants || []).map(x => <span key={x} className="tag">{x}</span>)}
         </p>
@@ -77,7 +81,7 @@ export function RecipeView({ id }: { id: string }) {
           {ing.length === 0 ? (
             <li><span className="empty-line">Pas encore d'ingrédients.</span></li>
           ) : ing.map((g, i) => (
-            <li key={i}><span>{g.n}</span><span className="q">{qtyText((Number(g.q) || 0) * viewN, g.u)}</span></li>
+            <li key={i}><span>{g.n}</span><span className="q">{qtyText((Number(g.q) || 0) * viewN / base, g.u)}</span></li>
           ))}
         </ul>
       </div>

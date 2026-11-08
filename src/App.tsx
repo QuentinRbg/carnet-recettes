@@ -11,6 +11,7 @@ import { auth } from "./firebase";
 import { useAuth } from "./hooks/useAuth";
 import { useData } from "./hooks/useData";
 import { finderBusy, newFinder } from "./lib/finder";
+import { portionsOf } from "./lib/format";
 import type { Finder } from "./lib/finder";
 import { currentHash, getRoute } from "./lib/route";
 import type { Cart, Recipe } from "./types";
@@ -171,7 +172,7 @@ function Main() {
 }
 
 function CartDialog({ r, onClose, onAdd }: { r: Recipe; onClose: () => void; onAdd: (n: number) => void }) {
-  const [n, setN] = useState(1);
+  const [n, setN] = useState(() => portionsOf(r));
   return (
     <Dialog title="Ajouter au panier" titleId="dlgTitle" sub={r.name} onClose={onClose}>
       <div className="portions">
