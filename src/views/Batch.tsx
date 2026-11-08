@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useApp } from "../AppContext";
 import { PlateIcon } from "../components/Icons";
 import { RecipePicker } from "../components/RecipePicker";
+import { ShopList } from "../components/ShopList";
 import { Stepper } from "../components/Stepper";
 import { CoursesSwitch } from "./Courses";
 import { MAX_SLOTS, MIN_SLOTS, batchToCart, fillRandom, filledSlots, resizeSlots } from "../lib/batch";
-import { aggregate, fmtTime, lines, qtyText } from "../lib/format";
+import { aggregate, fmtTime, lines } from "../lib/format";
 
 /** Batch cooking : on choisit le nombre de plats, on remplit les cases, et on obtient la liste de courses et les recettes. */
 export function Batch() {
@@ -100,18 +101,8 @@ export function Batch() {
               <span className="sub" style={{ margin: 0 }}>{doneCount} / {shop.length} cochés</span>
             </div>
             {shop.length === 0 ? <p className="empty-line">Rien à acheter pour ces recettes.</p> : null}
-            <ul className="shop">
-              {shop.map(x => (
-                <li key={x.key} className={isOn(x.key) ? "done" : ""}>
-                  <label>
-                    <input type="checkbox" checked={isOn(x.key)}
-                      onChange={() => updateBatch(b => ({ ...b, checked: b.checked.includes(x.key) ? b.checked.filter(k => k !== x.key) : [...b.checked, x.key] }))} />
-                    <span className="it">{x.name}</span>
-                    <span className="q">{qtyText(x.q, x.u)}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <ShopList lines={shop} isOn={isOn}
+              onToggle={key => updateBatch(b => ({ ...b, checked: b.checked.includes(key) ? b.checked.filter(k => k !== key) : [...b.checked, key] }))} />
             <div className="actions">
               <button className="btn small" type="button" disabled={doneCount === 0}
                 onClick={() => updateBatch(b => ({ ...b, checked: [] }))}>Tout décocher</button>

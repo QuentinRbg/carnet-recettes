@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
+import { ShopList } from "../components/ShopList";
 import { Stepper } from "../components/Stepper";
-import { aggregate, qtyText } from "../lib/format";
+import { aggregate } from "../lib/format";
 
 /** Sélecteur en haut des courses : le panier habituel ou le plan de batch cooking. */
 export function CoursesSwitch({ current }: { current: "courses" | "batch" }) {
@@ -77,18 +78,8 @@ export function Courses() {
           <span className="sub" style={{ margin: 0 }}>{doneCount} / {list.length} cochés</span>
         </div>
         {list.length === 0 ? <p className="empty-line">Rien à acheter pour ces recettes.</p> : null}
-        <ul className="shop">
-          {list.map(x => (
-            <li key={x.key} className={isOn(x.key) ? "done" : ""}>
-              <label>
-                <input type="checkbox" checked={isOn(x.key)}
-                  onChange={() => updateCart(c => ({ ...c, checked: c.checked.includes(x.key) ? c.checked.filter(k => k !== x.key) : [...c.checked, x.key] }))} />
-                <span className="it">{x.name}</span>
-                <span className="q">{qtyText(x.q, x.u)}</span>
-              </label>
-            </li>
-          ))}
-        </ul>
+        <ShopList lines={list} isOn={isOn}
+          onToggle={key => updateCart(c => ({ ...c, checked: c.checked.includes(key) ? c.checked.filter(k => k !== key) : [...c.checked, key] }))} />
         <div className="actions">
           <button className="btn small" type="button" disabled={doneCount === 0}
             onClick={() => updateCart(c => ({ ...c, checked: [] }))}>Tout décocher</button>

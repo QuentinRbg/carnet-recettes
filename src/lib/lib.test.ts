@@ -3,6 +3,7 @@ import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./for
 import { newFinder, propose, rank } from "./finder";
 import { currentSeason, inSeason, isSeasonal } from "./season";
 import { recipeMatches, toggleFilter } from "./filters";
+import { emojiFor, FALLBACK_EMOJI } from "./emoji";
 import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, resizeSlots } from "./batch";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
@@ -231,5 +232,27 @@ describe("batch cooking", () => {
     expect(n.slots).toEqual([{ rid: "", n: 1 }, { rid: "a", n: 99 }, { rid: "", n: 1 }]);
     expect(n.checked).toEqual(["k"]);
     expect(n.persons).toBe(2);
+  });
+});
+
+describe("emojis des ingrédients", () => {
+  const cas: [string, string][] = [
+    ["Tomate", "🍅"], ["Tomate concassée", "🍅"], ["Coulis de tomate", "🍅"],
+    ["Pomme de terre", "🥔"], ["Pomme", "🍎"], ["Patate douce", "🍠"], ["Purée Mousline (flocons)", "🥔"],
+    ["Lait", "🥛"], ["Lait de coco", "🥥"], ["Lait de brebis", "🥛"], ["Crème fraîche épaisse", "🥛"],
+    ["Poivre", "🧂"], ["Poivron rouge", "🫑"], ["Piment d'Espelette", "🌶️"],
+    ["Œuf", "🥚"], ["Jaune d'œuf", "🥚"], ["Bœuf haché", "🥩"], ["Steak haché de bœuf", "🥩"], ["Haché végétal", "🌱"],
+    ["Blanc de poulet", "🍗"], ["Bouillon de volaille", "🍲"], ["Saucisse de volaille", "🌭"], ["Saucisson", "🥓"],
+    ["Pâtes", "🍝"], ["Pâtes Orzo", "🍝"], ["Plaques de lasagnes", "🍝"], ["Pâte feuilletée", "🥧"], ["Pâte brisée", "🥧"],
+    ["Riz Arborio", "🍚"], ["Vinaigre de riz", "🫙"], ["Pain à burger", "🍔"], ["Pain de campagne", "🍞"],
+    ["Fromage ail & fines herbes", "🧀"], ["Tomme de brebis", "🧀"], ["Ail", "🧄"], ["Échalote", "🧅"],
+    ["Courgette", "🥒"], ["Courge butternut", "🎃"], ["Noix de muscade", "🧂"], ["Noix de pécan", "🥜"],
+    ["Jus de citron vert", "🍋"], ["Huile d'olive", "🫒"], ["Maïs en conserve", "🌽"], ["Maïzena", "🌾"],
+    ["CAROTTE", "🥕"], ["  carotte  ", "🥕"]
+  ];
+  it.each(cas)("%s → %s", (nom, emoji) => { expect(emojiFor(nom)).toBe(emoji); });
+  it("un aliment inconnu reçoit l'emoji de repli", () => {
+    expect(emojiFor("Truc inconnu")).toBe(FALLBACK_EMOJI);
+    expect(emojiFor("")).toBe(FALLBACK_EMOJI);
   });
 });

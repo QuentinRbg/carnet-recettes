@@ -210,6 +210,8 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 .shop li:last-child { border-bottom: 0; }
 .shop label { display: flex; align-items: center; gap: 12px; padding: 11px 2px; cursor: pointer; }
 .shop input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.shop .emo { flex: none; width: 1.7em; text-align: center; font-size: 1.3rem; line-height: 1; }
+.shop li.done .emo { opacity: .4; filter: grayscale(1); }
 .shop .it { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .shop .q { font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
 .shop li.done .it, .shop li.done .q { color: var(--muted); text-decoration: line-through; }
