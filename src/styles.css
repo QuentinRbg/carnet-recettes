@@ -42,7 +42,7 @@ img { max-width: 100%; }
 * { box-sizing: border-box; }
 body {
   background: var(--bg); color: var(--fg); font: 16px/1.5 var(--font-body);
-  padding-block: 24px 80px;
+  padding-block: 12px 80px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
