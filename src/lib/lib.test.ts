@@ -6,7 +6,7 @@ import { recipeMatches, toggleFilter } from "./filters";
 import { emojiFor, emojiKey, emojiOf, FALLBACK_EMOJI, firstEmoji, normalizeEmojis } from "./emoji";
 import { RAYONS, rayonFor } from "./rayon";
 import type { RayonId } from "./rayon";
-import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, randomGroups, resizeSlots } from "./batch";
+import { addPortion, batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, hasFreeSlot, normalizeBatch, randomGroups, resizeSlots } from "./batch";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
 
@@ -176,7 +176,9 @@ describe("filtres de la liste", () => {
 });
 
 describe("batch cooking", () => {
-  const full = (ids: string[]) => ({ ...defaultBatch(), slots: ids.map(id => ({ rid: id, n: 2 })), persons: 3 });
+  const plan = (ids: string[], persons = 3) => ({ ...defaultBatch(), slots: ids.map(id => ({ rid: id })), persons });
+  const ids = (b: { slots: { rid: string }[] }) => b.slots.map(x => x.rid);
+
   it("démarre avec 6 cases libres, pour 2 personnes", () => {
     const b = defaultBatch();
     expect(b.slots).toHaveLength(6);
@@ -184,42 +186,77 @@ describe("batch cooking", () => {
     expect(b.persons).toBe(2);
   });
   it("ajoute des cases libres en augmentant le nombre de plats", () => {
-    const s = resizeSlots([{ rid: "a", n: 2 }], 3);
+    const s = resizeSlots([{ rid: "a" }], 3);
     expect(s).toHaveLength(3);
     expect(s[0].rid).toBe("a");
     expect(s[2].rid).toBe("");
   });
   it("en réduisant, retire d'abord les cases libres sans perdre de plat", () => {
-    const s = resizeSlots([{ rid: "a", n: 1 }, { rid: "", n: 1 }, { rid: "b", n: 1 }, { rid: "", n: 1 }], 2);
+    const s = resizeSlots([{ rid: "a" }, { rid: "" }, { rid: "b" }, { rid: "" }], 2);
     expect(s.map(x => x.rid)).toEqual(["a", "b"]);
   });
   it("en réduisant encore, retire les dernières cases pleines", () => {
-    const s = resizeSlots([{ rid: "a", n: 1 }, { rid: "b", n: 1 }, { rid: "c", n: 1 }], 2);
-    expect(s.map(x => x.rid)).toEqual(["a", "b"]);
+    expect(resizeSlots([{ rid: "a" }, { rid: "b" }, { rid: "c" }], 2).map(x => x.rid)).toEqual(["a", "b"]);
   });
   it("garde le nombre de plats entre 1 et 12", () => {
     expect(resizeSlots([], 0)).toHaveLength(1);
     expect(resizeSlots([], 50)).toHaveLength(12);
   });
-  it("devient un panier, ce qui donne la liste de courses avec les bonnes quantités", () => {
+  it("devient un panier : chaque case compte pour le nombre de personnes du réglage", () => {
     const recettes = [r("a", { portions: 2, ing: [{ n: "Riz", q: 100, u: "g" }] }), r("b", { ing: [{ n: "Riz", q: 50, u: "g" }] })];
-    const b = { ...full(["a", "b", ""]), checked: ["riz|g"] };
+    const b = { ...plan(["a", "b", ""], 2), checked: ["riz|g"] };
     const cart = batchToCart(b);
     expect(cart.items).toEqual([{ rid: "a", n: 2 }, { rid: "b", n: 2 }]);
     expect(cart.checked).toEqual(["riz|g"]);
     // a : 100 g pour 2 pers., on en veut 2 → 100 g ; b : 50 g par pers., on en veut 2 → 100 g
     expect(aggregate(cart, recettes).find(x => x.key === "riz|g")?.q).toBe(200);
   });
-  it("vide les cases d'une recette supprimée", () => {
-    const b = dropRecipe(full(["a", "b", "a"]), "a");
-    expect(b.slots.map(x => x.rid)).toEqual(["", "b", ""]);
+  it("changer le nombre de personnes change toute la liste, sans repasser sur chaque case", () => {
+    const recettes = [r("a", { portions: 1, ing: [{ n: "Riz", q: 100, u: "g" }] })];
+    const un = aggregate(batchToCart(plan(["a", "a"], 1)), recettes).find(x => x.key === "riz|g")?.q;
+    const trois = aggregate(batchToCart(plan(["a", "a"], 3)), recettes).find(x => x.key === "riz|g")?.q;
+    expect(un).toBe(200);
+    expect(trois).toBe(600);
   });
+  it("vide les cases d'une recette supprimée", () => {
+    expect(ids(dropRecipe(plan(["a", "b", "a"]), "a"))).toEqual(["", "b", ""]);
+  });
+
+  it("ajouter une portion prend une case libre et se place juste après la recette", () => {
+    const b = plan(["a", "a", "b", "", ""]);
+    const out = addPortion(b, 0);
+    expect(ids(out)).toEqual(["a", "a", "a", "b", ""]);
+    expect(out.slots).toHaveLength(5);
+  });
+  it("ajouter une portion à partir de la dernière case d'un bloc", () => {
+    expect(ids(addPortion(plan(["a", "a", "b", ""]), 1))).toEqual(["a", "a", "a", "b"]);
+  });
+  it("ajouter une portion quand la case libre est avant la recette", () => {
+    expect(ids(addPortion(plan(["", "a", "b", "b"]), 1))).toEqual(["a", "a", "b", "b"]);
+    expect(ids(addPortion(plan(["", "a", "b", "b"]), 3))).toEqual(["a", "b", "b", "b"]);
+  });
+  it("ajouter une portion ne change rien sans case libre, ou sur une case libre", () => {
+    const plein = plan(["a", "b", "c"]);
+    expect(addPortion(plein, 0)).toBe(plein);
+    const b = plan(["a", ""]);
+    expect(addPortion(b, 1)).toBe(b);
+    expect(addPortion(b, 9)).toBe(b);
+    expect(hasFreeSlot(plein)).toBe(false);
+    expect(hasFreeSlot(b)).toBe(true);
+  });
+  it("ajouter des portions jusqu'à ce qu'il n'y ait plus de case libre", () => {
+    let b = plan(["a", "", "", ""]);
+    b = addPortion(b, 0); b = addPortion(b, 0); b = addPortion(b, 0);
+    expect(ids(b)).toEqual(["a", "a", "a", "a"]);
+    expect(hasFreeSlot(b)).toBe(false);
+  });
+
   it("répartit les cases en groupes de 2 ou 3, sans case seule sauf s'il n'y en a qu'une", () => {
     for (let total = 1; total <= 12; total++) {
-      for (const r of [0, 0.3, 0.6, 0.99]) {
-        const g = randomGroups(total, () => r);
+      for (const x of [0, 0.3, 0.6, 0.99]) {
+        const g = randomGroups(total, () => x);
         expect(g.reduce((a, c) => a + c, 0)).toBe(total);
-        if (total >= 2) g.forEach(x => { expect(x).toBeGreaterThanOrEqual(2); expect(x).toBeLessThanOrEqual(3); });
+        if (total >= 2) g.forEach(n => { expect(n).toBeGreaterThanOrEqual(2); expect(n).toBeLessThanOrEqual(3); });
       }
     }
     expect(randomGroups(1)).toEqual([1]);
@@ -228,52 +265,57 @@ describe("batch cooking", () => {
     expect(randomGroups(6, () => 0.99)).toEqual([3, 3]);
     expect(randomGroups(4, () => 0.99)).toEqual([2, 2]);
   });
-  it("au hasard, une même recette occupe 2 ou 3 cases côte à côte, pour le nombre de personnes réglé", () => {
-    const b = { ...defaultBatch(), persons: 1 };
-    for (const r of [0, 0.5, 0.99]) {
-      const out = fillRandom(b, ["a", "b", "c", "d", "e", "f"], () => r);
-      const ids = out.slots.map(x => x.rid);
-      expect(ids).not.toContain("");
+  it("au hasard, une même recette occupe 2 ou 3 cases côte à côte", () => {
+    for (const x of [0, 0.5, 0.99]) {
+      const out = fillRandom(defaultBatch(), ["a", "b", "c", "d", "e", "f"], () => x);
+      const liste = ids(out);
+      expect(liste).not.toContain("");
       const compte: Record<string, number> = {};
-      ids.forEach(id => { compte[id] = (compte[id] || 0) + 1; });
+      liste.forEach(id => { compte[id] = (compte[id] || 0) + 1; });
       Object.values(compte).forEach(n => { expect(n).toBeGreaterThanOrEqual(2); expect(n).toBeLessThanOrEqual(3); });
-      // côte à côte : chaque recette forme un seul bloc
-      expect(ids.filter((id, i) => i === 0 || id !== ids[i - 1])).toHaveLength(Object.keys(compte).length);
-      out.slots.forEach(x => expect(x.n).toBe(1));
+      expect(liste.filter((id, i) => i === 0 || id !== liste[i - 1])).toHaveLength(Object.keys(compte).length);
     }
   });
-  it("au hasard, ne touche pas aux cases déjà remplies et n'y reprend pas la même recette", () => {
-    const b = { ...defaultBatch(), slots: [{ rid: "a", n: 4 }, { rid: "", n: 1 }, { rid: "", n: 1 }, { rid: "", n: 1 }, { rid: "b", n: 2 }], persons: 3 };
-    const out = fillRandom(b, ["a", "b", "c", "d", "e"], () => 0.5);
-    expect(out.slots[0]).toEqual({ rid: "a", n: 4 });
-    expect(out.slots[4]).toEqual({ rid: "b", n: 2 });
-    const nouveaux = out.slots.slice(1, 4);
-    expect(nouveaux.every(x => x.rid !== "" && x.rid !== "a" && x.rid !== "b")).toBe(true);
-    expect(nouveaux.every(x => x.n === 3)).toBe(true);
+  it("au hasard, comble toutes les cases libres restantes : 2 occupées sur 6, les 4 libres sont remplies", () => {
+    const b = plan(["a", "a", "", "", "", ""]);
+    for (const x of [0, 0.5, 0.99]) {
+      const out = fillRandom(b, ["a", "b", "c", "d", "e"], () => x);
+      expect(ids(out).slice(0, 2)).toEqual(["a", "a"]);
+      const nouveaux = ids(out).slice(2);
+      expect(nouveaux).toHaveLength(4);
+      expect(nouveaux.every(id => id !== "" && id !== "a")).toBe(true);
+      expect(filledSlots(out)).toHaveLength(6);
+    }
   });
-  it("au hasard, s'il y a peu de recettes, elles se répartissent les cases (plus de 3 chacune si besoin)", () => {
+  it("au hasard, ne touche pas aux cases déjà remplies, même isolées", () => {
+    const b = plan(["a", "", "", "", "b"]);
+    const out = fillRandom(b, ["a", "b", "c", "d", "e"], () => 0.5);
+    expect(out.slots[0].rid).toBe("a");
+    expect(out.slots[4].rid).toBe("b");
+    expect(ids(out).slice(1, 4).every(id => id !== "" && id !== "a" && id !== "b")).toBe(true);
+  });
+  it("au hasard, s'il y a peu de recettes, elles se répartissent les cases", () => {
     const out = fillRandom(defaultBatch(), ["a", "b"], () => 0.1);
     expect(filledSlots(out)).toHaveLength(6);
-    expect(new Set(out.slots.map(x => x.rid))).toEqual(new Set(["a", "b"]));
-    const un = fillRandom(defaultBatch(), ["a"], () => 0.1);
-    expect(un.slots.every(x => x.rid === "a")).toBe(true);
+    expect(new Set(ids(out))).toEqual(new Set(["a", "b"]));
+    expect(fillRandom(defaultBatch(), ["a"], () => 0.1).slots.every(x => x.rid === "a")).toBe(true);
   });
   it("au hasard, sans recette disponible ou sans case libre, rien ne change", () => {
     const b = defaultBatch();
     expect(fillRandom(b, [], () => 0.5)).toBe(b);
-    const plein = { ...b, slots: b.slots.map(() => ({ rid: "a", n: 2 })) };
+    const plein = plan(["a", "a", "a"]);
     expect(fillRandom(plein, ["b", "c"], () => 0.5)).toBe(plein);
   });
-  it("remet en forme un document abîmé ou absent", () => {
+
+  it("remet en forme un document abîmé, absent ou ancien (cases avec un nombre de personnes)", () => {
     expect(normalizeBatch(null)).toEqual(defaultBatch());
     expect(normalizeBatch({ slots: "x" }).slots).toHaveLength(6);
     const n = normalizeBatch({ slots: [null, { rid: "a", n: 500 }, { rid: 3 }], checked: ["k", 4], persons: 0 });
-    expect(n.slots).toEqual([{ rid: "", n: 1 }, { rid: "a", n: 99 }, { rid: "", n: 1 }]);
+    expect(n.slots).toEqual([{ rid: "" }, { rid: "a" }, { rid: "" }]);
     expect(n.checked).toEqual(["k"]);
     expect(n.persons).toBe(2);
   });
 });
-
 describe("emojis des ingrédients", () => {
   const cas: [string, string][] = [
     ["Tomate", "🍅"], ["Tomate concassée", "🍅"], ["Coulis de tomate", "🍅"],
