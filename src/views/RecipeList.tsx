@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useApp } from "../AppContext";
 import { CartButton } from "../components/CartButton";
+import { FilterChips } from "../components/FilterChips";
 import { Dialog } from "../components/Dialog";
 import { PlateIcon } from "../components/Icons";
 import { CATS } from "../constants";
 import { fmtTime, ingOf, norm } from "../lib/format";
-import { MOOD_FILTERS, TYPE_FILTERS, recipeMatches, toggleFilter } from "../lib/filters";
+import { recipeMatches } from "../lib/filters";
 import type { Recipe } from "../types";
 
 /** Filtres cochés (plusieurs possibles) et texte recherché. */
@@ -32,16 +33,6 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
   const { recipes, loaded, go } = useApp();
   const [adding, setAdding] = useState(false);
   const shown = recipes.filter(r => matches(r, ui));
-  // Un filtre sans aucune recette n'est montré que s'il est coché.
-  const chip = (c: string) => {
-    const n = recipes.filter(r => recipeMatches(r, [c])).length;
-    const on = ui.filters.includes(c);
-    if (n === 0 && !on) return null;
-    return (
-      <button key={c} className="chip" type="button" aria-pressed={on}
-        onClick={() => setUi({ ...ui, filters: toggleFilter(ui.filters, c) })}>{c} {n}</button>
-    );
-  };
 
   return (
     <section className="view">
@@ -50,13 +41,7 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
           onChange={e => setUi({ ...ui, query: e.target.value })} />
         <button className="btn primary" type="button" onClick={() => setAdding(true)}>Ajouter</button>
       </div>
-      <div className="chips" role="group" aria-label="Filtrer les recettes">
-        <button className="chip" type="button" aria-pressed={ui.filters.length === 0}
-          onClick={() => setUi({ ...ui, filters: [] })}>Toutes {recipes.length}</button>
-        {TYPE_FILTERS.map(chip)}
-        <span className="chip-sep" aria-hidden="true" />
-        {MOOD_FILTERS.map(chip)}
-      </div>
+      <FilterChips recipes={recipes} filters={ui.filters} onChange={filters => setUi({ ...ui, filters })} />
       <ul className="list">
         {shown.map(r => {
           return (
