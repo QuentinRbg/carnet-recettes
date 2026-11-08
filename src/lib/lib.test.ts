@@ -3,7 +3,7 @@ import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./for
 import { newFinder, propose, rank } from "./finder";
 import { currentSeason, inSeason, isSeasonal } from "./season";
 import { recipeMatches, toggleFilter } from "./filters";
-import { emojiFor, FALLBACK_EMOJI } from "./emoji";
+import { emojiFor, emojiKey, emojiOf, FALLBACK_EMOJI, firstEmoji, normalizeEmojis } from "./emoji";
 import { RAYONS, rayonFor } from "./rayon";
 import type { RayonId } from "./rayon";
 import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, resizeSlots } from "./batch";
@@ -280,5 +280,35 @@ describe("rayons de la liste de courses", () => {
     expect(ids.indexOf("surgeles")).toBeLessThan(ids.indexOf("autre"));
     expect(ids.indexOf("surgeles")).toBe(ids.length - 2);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("emoji choisi à la main", () => {
+  it("la clé ne dépend ni des accents, ni des majuscules, ni des espaces autour", () => {
+    expect(emojiKey("Pêche")).toBe("peche");
+    expect(emojiKey("  PÊCHE ")).toBe("peche");
+    expect(emojiKey("Œuf")).toBe("oeuf");
+    expect(emojiKey("Jaune d'œuf")).toBe("jaune d'oeuf");
+  });
+  it("l'emoji choisi passe avant celui deviné, et sert pour toutes les graphies du nom", () => {
+    const dict = { peche: "🍑", tomate: "🍎" };
+    expect(emojiOf("Pêche", dict)).toBe("🍑");
+    expect(emojiOf("PÊCHE", dict)).toBe("🍑");
+    expect(emojiOf("Tomate", dict)).toBe("🍎");
+    expect(emojiOf("Carotte", dict)).toBe("🥕");
+    expect(emojiOf("Pêche")).toBe(FALLBACK_EMOJI);
+  });
+  it("trouve le premier emoji d'un texte, même assemblé", () => {
+    expect(firstEmoji("🍑")).toBe("🍑");
+    expect(firstEmoji("ma pêche 🍑 mûre")).toBe("🍑");
+    expect(firstEmoji("🧑‍🍳 cuisinier")).toBe("🧑‍🍳");
+    expect(firstEmoji("🌶️")).toBe("🌶️");
+    expect(firstEmoji("pas d'emoji")).toBeNull();
+    expect(firstEmoji("")).toBeNull();
+  });
+  it("remet en forme le dictionnaire venu de Firestore", () => {
+    expect(normalizeEmojis(null)).toEqual({});
+    expect(normalizeEmojis({})).toEqual({});
+    expect(normalizeEmojis({ map: { peche: "🍑", vide: "", texte: "abc", " ": "🍎", nombre: 4, long: "🍑 mûre" } })).toEqual({ peche: "🍑", long: "🍑" });
   });
 });

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc, writeBatch
+  FieldPath, addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc, writeBatch
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { defaultBatch, dropRecipe, normalizeBatch } from "../lib/batch";
+import { emojiKey, normalizeEmojis } from "../lib/emoji";
+import type { EmojiDict } from "../lib/emoji";
 import type { Batch } from "../lib/batch";
 import type { Photo } from "../lib/image";
 import type { Cart, Recipe, RecipeInput } from "../types";
@@ -24,6 +26,7 @@ export function useData(toast: (msg: string) => void) {
   const cartRef = useRef<Cart>(EMPTY_CART);
   const writing = useRef(false);
   const dirty = useRef(false);
+  const [emojis, setEmojis] = useState<EmojiDict>({});
   const [batch, setBatch] = useState<Batch>(defaultBatch);
   const batchRef = useRef<Batch>(batch);
   const bWriting = useRef(false);
@@ -57,7 +60,10 @@ export function useData(toast: (msg: string) => void) {
       batchRef.current = next;
       setBatch(next);
     }, () => {});
-    return () => { clearTimeout(timer); unsubRecipes(); unsubCart(); unsubBatch(); };
+    const unsubEmojis = onSnapshot(doc(db, "ingredients", "emojis"), snap => {
+      setEmojis(normalizeEmojis(snap.exists() ? snap.data() : null));
+    }, () => {});
+    return () => { clearTimeout(timer); unsubRecipes(); unsubCart(); unsubBatch(); unsubEmojis(); };
   }, []);
 
   const persistCart = useCallback(() => {
@@ -113,6 +119,22 @@ export function useData(toast: (msg: string) => void) {
   const saveRecipe = useCallback((id: string, patch: Partial<RecipeInput>) =>
     updateDoc(doc(db, "recettes", id), patch).catch(() => toast("Impossible d'enregistrer, réessaie.")), [toast]);
 
+  /** Choisit l'emoji d'un ingrédient pour toutes les recettes ; une chaîne vide revient à l'emoji automatique. */
+  const setIngredientEmoji = useCallback((name: string, emoji: string) => {
+    const key = emojiKey(name);
+    if (!key) return Promise.resolve();
+    const ref = doc(db, "ingredients", "emojis");
+    setEmojis(prev => {
+      const next = { ...prev };
+      if (emoji) next[key] = emoji; else delete next[key];
+      return next;
+    });
+    const write = emoji
+      ? setDoc(ref, { map: { [key]: emoji } }, { merge: true })
+      : updateDoc(ref, new FieldPath("map", key), deleteField());
+    return write.catch(() => { if (emoji) toast("L'emoji n'a pas pu être enregistré."); });
+  }, [toast]);
+
   const addRecipe = useCallback((data: RecipeInput) => addDoc(collection(db, "recettes"), data), []);
 
   /** Photo : la miniature est dans la recette (liste), la grande version dans photos/{id} (fiche). */
@@ -150,12 +172,13 @@ export function useData(toast: (msg: string) => void) {
   }, [updateCart, updateBatch, toast]);
 
   /** Importe une sauvegarde : les recettes de même identifiant sont remplacées. */
-  const importAll = useCallback(async (list: Recipe[], panier?: Cart, photos?: Record<string, string>, plan?: Batch) => {
+  const importAll = useCallback(async (list: Recipe[], panier?: Cart, photos?: Record<string, string>, plan?: Batch, dict?: EmojiDict) => {
     const items: { path: [string, string]; data: Record<string, unknown> }[] = list.map(r => {
       const { id, ...rest } = r;
       return { path: ["recettes", id], data: rest };
     });
     if (panier) items.push({ path: ["panier", "main"], data: { items: panier.items, checked: panier.checked } });
+    if (dict && Object.keys(dict).length) items.push({ path: ["ingredients", "emojis"], data: { map: dict } });
     if (plan) items.push({ path: ["batch", "main"], data: { slots: plan.slots, checked: plan.checked, persons: plan.persons } });
     for (let k = 0; k < items.length; k += 400) {
       const b = writeBatch(db);
@@ -169,5 +192,5 @@ export function useData(toast: (msg: string) => void) {
     }
   }, []);
 
-  return { recipes, loaded, notice, cart, batch, updateBatch, updateCart, addToCart, saveRecipe, addRecipe, removeRecipe, importAll, savePhoto, deletePhoto, loadPhoto, fetchPhotos };
+  return { recipes, loaded, notice, cart, batch, updateBatch, emojis, setIngredientEmoji, updateCart, addToCart, saveRecipe, addRecipe, removeRecipe, importAll, savePhoto, deletePhoto, loadPhoto, fetchPhotos };
 }

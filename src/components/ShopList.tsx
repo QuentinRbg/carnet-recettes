@@ -1,4 +1,5 @@
-import { emojiFor } from "../lib/emoji";
+import { useApp } from "../AppContext";
+import { emojiOf } from "../lib/emoji";
 import { qtyText } from "../lib/format";
 import type { ShopLine } from "../lib/format";
 import { RAYONS, rayonFor } from "../lib/rayon";
@@ -14,6 +15,7 @@ type Props = {
  * Dans un rayon, ce qui reste à acheter passe avant ce qui est coché.
  */
 export function ShopList({ lines, isOn, onToggle }: Props) {
+  const { emojis } = useApp();
   const groups = RAYONS.map(r => ({
     ...r,
     items: lines
@@ -33,7 +35,7 @@ export function ShopList({ lines, isOn, onToggle }: Props) {
                 <li key={x.key} className={isOn(x.key) ? "done" : ""}>
                   <label>
                     <input type="checkbox" checked={isOn(x.key)} onChange={() => onToggle(x.key)} />
-                    <span className="emo" aria-hidden="true">{emojiFor(x.name)}</span>
+                    <span className="emo" aria-hidden="true">{emojiOf(x.name, emojis)}</span>
                     <span className="it">{x.name}</span>
                     <span className="q">{qtyText(x.q, x.u)}</span>
                   </label>

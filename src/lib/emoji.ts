@@ -77,3 +77,48 @@ export function emojiFor(name: string): string {
   for (const [re, emoji] of RULES) if (re.test(n)) return emoji;
   return FALLBACK_EMOJI;
 }
+
+/** Dictionnaire d'emojis choisis à la main : clé = nom d'ingrédient (voir emojiKey), valeur = un emoji. */
+export type EmojiDict = Record<string, string>;
+
+/** Clé d'un ingrédient dans le dictionnaire : son nom sans accents ni majuscules. « Tomate » et « tomate » donnent la même clé. */
+export const emojiKey = (name: string): string => plainName(name).trim();
+
+/** Emoji d'un ingrédient : celui choisi à la main s'il existe, sinon celui deviné d'après le nom. */
+export function emojiOf(name: string, dict: EmojiDict = {}): string {
+  return dict[emojiKey(name)] || emojiFor(name);
+}
+
+/** Premier emoji d'un texte (un emoji complet, avec ses variantes et ses assemblages), ou null s'il n'y en a pas. */
+export function firstEmoji(text: string): string | null {
+  const seg = new Intl.Segmenter("fr", { granularity: "grapheme" });
+  for (const { segment } of seg.segment(text)) {
+    if (/\p{Extended_Pictographic}/u.test(segment)) return segment;
+  }
+  return null;
+}
+
+/** Remet en forme le dictionnaire venu de Firestore : on ne garde que des clés non vides associées à un emoji. */
+export function normalizeEmojis(data: unknown): EmojiDict {
+  const map = data && typeof data === "object" ? (data as { map?: unknown }).map : null;
+  const out: EmojiDict = {};
+  if (map && typeof map === "object") {
+    for (const [k, v] of Object.entries(map as Record<string, unknown>)) {
+      const e = typeof v === "string" ? firstEmoji(v) : null;
+      if (k.trim() && e) out[k] = e;
+    }
+  }
+  return out;
+}
+
+/** Choix proposés dans le sélecteur d'emoji, par famille d'aliments. */
+export const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
+  { label: "Légumes", emojis: ["🥬", "🥦", "🥕", "🌽", "🥒", "🍆", "🫑", "🌶️", "🥔", "🍠", "🧅", "🧄", "🍄", "🫛", "🫘", "🎃", "🍅", "🥗"] },
+  { label: "Fruits", emojis: ["🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐", "🍒", "🍑", "🥭", "🍍", "🥝", "🥑", "🥥", "🫒", "🍈"] },
+  { label: "Viandes et poissons", emojis: ["🥩", "🍗", "🍖", "🥓", "🌭", "🐟", "🍤", "🦐", "🦑", "🐙", "🦪"] },
+  { label: "Crèmerie et œufs", emojis: ["🥛", "🧀", "🧈", "🥚", "🍦"] },
+  { label: "Féculents et pain", emojis: ["🍞", "🥖", "🥐", "🥨", "🫓", "🥞", "🧇", "🍝", "🍜", "🍚", "🌾", "🥟", "🍕", "🍟", "🥧"] },
+  { label: "Épicerie et épices", emojis: ["🥫", "🫙", "🧂", "🍯", "🍬", "🍫", "🥜", "🌰", "🍲", "🥣", "🧊"] },
+  { label: "Herbes", emojis: ["🌿", "🍃", "🌱", "☘️"] },
+  { label: "Boissons", emojis: ["💧", "🍷", "🥃", "🍺", "☕", "🍵", "🧃", "🥤"] }
+];
