@@ -12,7 +12,10 @@ import { useData } from "./hooks/useData";
 import { finderBusy, newFinder } from "./lib/finder";
 import type { Finder } from "./lib/finder";
 import { currentHash, getRoute } from "./lib/route";
+import { normalizeBatch } from "./lib/batch";
+import type { Batch as BatchPlan } from "./lib/batch";
 import type { Cart, Recipe } from "./types";
+import { Batch } from "./views/Batch";
 import { Courses } from "./views/Courses";
 import { Login } from "./views/Login";
 import { MealFinder } from "./views/MealFinder";
@@ -27,7 +30,7 @@ export default function App() {
   return user ? <Main /> : <Login />;
 }
 
-type ImportPlan = { list: Recipe[]; panier?: Cart; photos?: Record<string, string> };
+type ImportPlan = { list: Recipe[]; panier?: Cart; photos?: Record<string, string>; batch?: BatchPlan };
 
 function Main() {
   const { toast, node: toastNode } = useToast();
@@ -89,7 +92,7 @@ function Main() {
     if (!f) return;
     const reader = new FileReader();
     reader.onload = () => {
-      let parsed: { recettes?: Recipe[]; panier?: Cart; photos?: Record<string, unknown> };
+      let parsed: { recettes?: Recipe[]; panier?: Cart; photos?: Record<string, unknown>; batch?: unknown };
       try { parsed = JSON.parse(String(reader.result)); } catch { toast("Fichier illisible."); return; }
       const list = Array.isArray(parsed.recettes)
         ? parsed.recettes.filter(r => r && typeof r.id === "string" && r.id && !r.id.includes("/")) : [];
@@ -98,7 +101,7 @@ function Main() {
       const panier = p && Array.isArray(p.items) ? { items: p.items, checked: Array.isArray(p.checked) ? p.checked : [] } : undefined;
       const photos: Record<string, string> = {};
       Object.entries(parsed.photos ?? {}).forEach(([k, v]) => { if (typeof v === "string" && v.startsWith("data:image/")) photos[k] = v; });
-      setImportPlan({ list, panier, photos });
+      setImportPlan({ list, panier, photos, batch: parsed.batch ? normalizeBatch(parsed.batch) : undefined });
     };
     reader.readAsText(f);
   }
@@ -106,7 +109,7 @@ function Main() {
   async function exportAll() {
     let photos: Record<string, string> = {};
     try { photos = await data.fetchPhotos(); } catch { toast("Les photos n'ont pas pu être exportées."); }
-    const out = { app: "carnet-recettes", version: 2, exportedAt: new Date().toISOString(), recettes: data.recipes, panier: data.cart, photos };
+    const out = { app: "carnet-recettes", version: 2, exportedAt: new Date().toISOString(), recettes: data.recipes, panier: data.cart, batch: data.batch, photos };
     const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -125,7 +128,7 @@ function Main() {
         <nav className="tabs" aria-label="Sections">
           <button className="tab" type="button" {...tab(route.v === "list" || route.v === "recipe")} onClick={() => go("")}><span>Recettes</span></button>
           <button className="tab" type="button" {...tab(route.v === "finder")} onClick={() => go("finder")}><span>Meal finder</span></button>
-          <button className="tab" type="button" {...tab(route.v === "courses")} onClick={() => go("courses")}>
+          <button className="tab" type="button" {...tab(route.v === "courses" || route.v === "batch")} onClick={() => go("courses")}>
             <span>Courses</span>
             <span className="badge">{data.cart.items.length ? data.cart.items.length : ""}</span>
           </button>
@@ -135,6 +138,7 @@ function Main() {
         {route.v === "recipe" ? <RecipeView key={route.id} id={route.id} /> : null}
         {route.v === "finder" ? <MealFinder finder={finder} update={updateFinder} reset={setFinderBoth} /> : null}
         {route.v === "courses" ? <Courses /> : null}
+        {route.v === "batch" ? <Batch /> : null}
 
         <footer className="foot">
           <button className="linkbtn" type="button" onClick={exportAll}>Exporter mes recettes</button>
@@ -161,7 +165,7 @@ function Main() {
           onCancel={() => setImportPlan(null)}
           onOk={() => {
             const plan = importPlan; setImportPlan(null);
-            data.importAll(plan.list, plan.panier, plan.photos)
+            data.importAll(plan.list, plan.panier, plan.photos, plan.batch)
               .then(() => toast(plan.list.length + (plan.list.length > 1 ? " recettes importées" : " recette importée")))
               .catch(() => toast("Import impossible, réessaie."));
           }} />

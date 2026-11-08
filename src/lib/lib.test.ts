@@ -3,6 +3,7 @@ import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./for
 import { newFinder, propose, rank } from "./finder";
 import { currentSeason, inSeason, isSeasonal } from "./season";
 import { recipeMatches, toggleFilter } from "./filters";
+import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, resizeSlots } from "./batch";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
 
@@ -168,5 +169,67 @@ describe("filtres de la liste", () => {
   it("coche et décoche un filtre", () => {
     expect(toggleFilter([], "Gourmand")).toEqual(["Gourmand"]);
     expect(toggleFilter(["Gourmand", "Plat"], "Gourmand")).toEqual(["Plat"]);
+  });
+});
+
+describe("batch cooking", () => {
+  const full = (ids: string[]) => ({ ...defaultBatch(), slots: ids.map(id => ({ rid: id, n: 2 })), persons: 3 });
+  it("démarre avec 6 cases libres, pour 2 personnes", () => {
+    const b = defaultBatch();
+    expect(b.slots).toHaveLength(6);
+    expect(filledSlots(b)).toHaveLength(0);
+    expect(b.persons).toBe(2);
+  });
+  it("ajoute des cases libres en augmentant le nombre de plats", () => {
+    const s = resizeSlots([{ rid: "a", n: 2 }], 3);
+    expect(s).toHaveLength(3);
+    expect(s[0].rid).toBe("a");
+    expect(s[2].rid).toBe("");
+  });
+  it("en réduisant, retire d'abord les cases libres sans perdre de plat", () => {
+    const s = resizeSlots([{ rid: "a", n: 1 }, { rid: "", n: 1 }, { rid: "b", n: 1 }, { rid: "", n: 1 }], 2);
+    expect(s.map(x => x.rid)).toEqual(["a", "b"]);
+  });
+  it("en réduisant encore, retire les dernières cases pleines", () => {
+    const s = resizeSlots([{ rid: "a", n: 1 }, { rid: "b", n: 1 }, { rid: "c", n: 1 }], 2);
+    expect(s.map(x => x.rid)).toEqual(["a", "b"]);
+  });
+  it("garde le nombre de plats entre 1 et 12", () => {
+    expect(resizeSlots([], 0)).toHaveLength(1);
+    expect(resizeSlots([], 50)).toHaveLength(12);
+  });
+  it("devient un panier, ce qui donne la liste de courses avec les bonnes quantités", () => {
+    const recettes = [r("a", { portions: 2, ing: [{ n: "Riz", q: 100, u: "g" }] }), r("b", { ing: [{ n: "Riz", q: 50, u: "g" }] })];
+    const b = { ...full(["a", "b", ""]), checked: ["riz|g"] };
+    const cart = batchToCart(b);
+    expect(cart.items).toEqual([{ rid: "a", n: 2 }, { rid: "b", n: 2 }]);
+    expect(cart.checked).toEqual(["riz|g"]);
+    // a : 100 g pour 2 pers., on en veut 2 → 100 g ; b : 50 g par pers., on en veut 2 → 100 g
+    expect(aggregate(cart, recettes).find(x => x.key === "riz|g")?.q).toBe(200);
+  });
+  it("vide les cases d'une recette supprimée", () => {
+    const b = dropRecipe(full(["a", "b", "a"]), "a");
+    expect(b.slots.map(x => x.rid)).toEqual(["", "b", ""]);
+  });
+  it("remplit au hasard seulement les cases libres, sans doublon, au bon nombre de personnes", () => {
+    const b = { ...defaultBatch(), slots: [{ rid: "a", n: 4 }, { rid: "", n: 1 }, { rid: "", n: 1 }], persons: 3 };
+    const out = fillRandom(b, ["a", "b", "c", "d"], () => 0.5);
+    expect(out.slots[0]).toEqual({ rid: "a", n: 4 });
+    const ids = out.slots.map(x => x.rid);
+    expect(new Set(ids).size).toBe(3);
+    expect(ids).not.toContain("");
+    expect(out.slots[1].n).toBe(3);
+  });
+  it("laisse des cases libres s'il n'y a pas assez de recettes", () => {
+    const out = fillRandom(defaultBatch(), ["a", "b"], () => 0.1);
+    expect(filledSlots(out)).toHaveLength(2);
+  });
+  it("remet en forme un document abîmé ou absent", () => {
+    expect(normalizeBatch(null)).toEqual(defaultBatch());
+    expect(normalizeBatch({ slots: "x" }).slots).toHaveLength(6);
+    const n = normalizeBatch({ slots: [null, { rid: "a", n: 500 }, { rid: 3 }], checked: ["k", 4], persons: 0 });
+    expect(n.slots).toEqual([{ rid: "", n: 1 }, { rid: "a", n: 99 }, { rid: "", n: 1 }]);
+    expect(n.checked).toEqual(["k"]);
+    expect(n.persons).toBe(2);
   });
 });

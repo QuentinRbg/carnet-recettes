@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDrawerBehavior } from "../hooks/useDrawerBehavior";
 import { usePhoto } from "../hooks/usePhoto";
 import { portionsOf } from "../lib/format";
 import type { Recipe } from "../types";
@@ -16,14 +17,7 @@ export function CartDrawer({ r, onClose, onAdd }: Props) {
   const [n, setN] = useState(() => portionsOf(r));
   const photo = usePhoto(r.id, r.thumb);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    // Le fond ne défile pas pendant que le tiroir est ouvert.
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
+  useDrawerBehavior(onClose);
 
   return (
     <div className="drawer-scrim" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>

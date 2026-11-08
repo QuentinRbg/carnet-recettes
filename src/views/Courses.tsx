@@ -3,6 +3,17 @@ import { useApp } from "../AppContext";
 import { Stepper } from "../components/Stepper";
 import { aggregate, qtyText } from "../lib/format";
 
+/** Sélecteur en haut des courses : le panier habituel ou le plan de batch cooking. */
+export function CoursesSwitch({ current }: { current: "courses" | "batch" }) {
+  const { go } = useApp();
+  return (
+    <div className="seg" role="group" aria-label="Type de courses">
+      <button type="button" aria-pressed={current === "courses"} onClick={() => go("courses")}>Panier</button>
+      <button type="button" aria-pressed={current === "batch"} onClick={() => go("batch")}>Batch cooking</button>
+    </div>
+  );
+}
+
 export function Courses() {
   const { recipes, cart, updateCart, go } = useApp();
   const [confirmClear, setConfirmClear] = useState(false);
@@ -10,6 +21,7 @@ export function Courses() {
   if (!cart.items.length) {
     return (
       <section className="view">
+        <CoursesSwitch current="courses" />
         <div className="state">
           <strong>Ton panier est vide</strong>
           Appuie sur le caddie d'une recette pour l'ajouter. Les ingrédients et les quantités se calculent tout seuls.
@@ -26,6 +38,7 @@ export function Courses() {
 
   return (
     <section className="view">
+      <CoursesSwitch current="courses" />
       <div className="panel">
         <h3>Recettes au panier</h3>
         <ul className="cart-recipes">
