@@ -93,8 +93,8 @@ textarea { resize: vertical; min-height: 96px; line-height: 1.45; }
 .searchrow { display: flex; gap: 10px; }
 .searchrow input { flex: 1; min-width: 0; }
 .searchrow .btn { flex: none; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: .9rem; }
+.chips { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; padding-bottom: 6px; margin-bottom: -6px; }
+.chip { flex: none; white-space: nowrap; border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: .9rem; }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 /* Cartes : 2 par ligne sur téléphone, 3 puis 4 sur grand écran */
 ul.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }

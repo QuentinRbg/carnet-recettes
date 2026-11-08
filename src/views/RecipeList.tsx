@@ -5,7 +5,7 @@ import { CartButton } from "../components/CartButton";
 import { Dialog } from "../components/Dialog";
 import { PlateIcon } from "../components/Icons";
 import { CATS } from "../constants";
-import { fmtTime, ingOf, isComplete, norm } from "../lib/format";
+import { fmtTime, ingOf, norm } from "../lib/format";
 import type { Recipe } from "../types";
 
 const READY = "Prêt à manger";
@@ -54,7 +54,6 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
       </div>
       <ul className="list">
         {shown.map(r => {
-          const done = isComplete(r);
           return (
             <li key={r.id} className="card">
               <button className="card-main" type="button" onClick={() => go("r-" + r.id)}>
@@ -63,12 +62,7 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
                   : <span className="card-img ph"><PlateIcon /></span>}
                 <span className="card-body">
                 <span className="name">{r.name}</span>
-                <span className="meta">
-                  <span className="tag">{r.category || "Autre"}</span>
-                  {r.readyMade ? <span className="tag">prêt à manger</span> : null}
-                  {r.time ? <span>{r.readyMade ? "cuisson " : ""}{fmtTime(r.time)}</span> : null}
-                  {done ? null : <span className="tag todo">à compléter</span>}
-                </span>
+                {r.time ? <span className="meta">{fmtTime(r.time)}</span> : null}
                 </span>
               </button>
               {r.fav ? <span className="fav" role="img" aria-label="Favorite">★</span> : null}
