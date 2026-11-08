@@ -34,6 +34,14 @@ const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 const slug = (s: string) => norm(s).replace(/œ/g, "oe").replace(/æ/g, "ae").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 const unitCodes = UNITS.map(u => u[0]).filter(Boolean);
 
+// Emoji d'un ingrédient : `e` dans une ligne d'ingrédient du brouillon l'enregistre dans le dictionnaire partagé (ingredients/emojis).
+// La clé doit rester identique à emojiKey de src/lib/emoji.ts : nom sans accents ni majuscules, « œ » devenu « oe ».
+const emojiKey = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/œ/g, "oe").trim();
+const firstEmoji = (t: string): string | null => {
+  for (const { segment } of new Intl.Segmenter("fr", { granularity: "grapheme" }).segment(t)) if (/\p{Extended_Pictographic}/u.test(segment)) return segment;
+  return null;
+};
+
 type Draft = Record<string, unknown>;
 const errors: string[] = [];
 const warnings: string[] = [];
@@ -52,6 +60,7 @@ function check(d: Draft, i: number) {
   else (d.ing as Draft[] ?? []).forEach((g: Draft, k: number) => {
     if (typeof g.n !== "string" || !g.n.trim()) err("ingrédient " + (k + 1) + " sans nom");
     if (typeof g.q !== "number" || !(g.q >= 0)) err("ingrédient « " + g.n + " » : q doit être un nombre positif ou nul");
+    if (g.e !== undefined && (typeof g.e !== "string" || firstEmoji(g.e) !== g.e)) err("ingrédient « " + g.n + " » : e doit être un seul emoji, par exemple \"🍑\"");
     if (g.u !== "" && !unitCodes.includes(g.u as string)) err("ingrédient « " + g.n + " » : unité « " + g.u + " » inconnue, attendu : " + unitCodes.join(", ") + " ou \"\"");
   });
   if (!(typeof d.steps === "string" || (Array.isArray(d.steps) && d.steps.every(s => typeof s === "string")) || (ready && d.steps === undefined))) err("steps doit être un texte ou une liste de textes");
@@ -100,7 +109,7 @@ if (db) {
 drafts.forEach((d, i) => {
   const ing = (d.ing as { n: string; q: number; u: string }[]) || [];
   console.log("\n— " + (update ? "[MODIFIE] " : "") + ids[i] + " : " + d.name + " [" + d.category + (d.readyMade ? ", PRÊT À MANGER, cuisson " : ", ") + (d.time || "?") + " min, pour " + d.portions + " pers.]");
-  ing.forEach(g => console.log("    " + g.q + " " + g.u + " " + g.n));
+  (ing as { n: string; q: number; u: string; e?: string }[]).forEach(g => console.log("    " + g.q + " " + g.u + " " + g.n + (g.e ? "  " + g.e + " (emoji choisi)" : "")));
   console.log("    ambiance : " + ((d.envies as string[]) || []).join(", ") + " | composants : " + ((d.composants as string[]) || []).join(", ") + " | saisons : " + ((d.saisons as string[]) || []).join(", "));
 });
 if (warnings.length) console.log("\nAvertissements :\n  - " + warnings.join("\n  - "));
@@ -124,6 +133,13 @@ for (const [i, d] of drafts.entries()) {
     ok++; console.log((update ? "modifiée : " : "écrite : ") + ids[i]);
   }
   catch (e) { console.error("ÉCHEC " + ids[i] + " : " + (e as Error).message); }
+}
+// Emojis choisis dans le brouillon : dictionnaire partagé, une entrée par nom d'ingrédient.
+const picked: Record<string, string> = {};
+drafts.forEach(d => ((d.ing || []) as { n: string; e?: string }[]).forEach(g => { if (g.e && g.n.trim()) picked[emojiKey(g.n)] = g.e; }));
+if (Object.keys(picked).length) {
+  await db!.collection("ingredients").doc("emojis").set({ map: picked }, { merge: true });
+  console.log("emojis enregistrés : " + Object.entries(picked).map(([k, v]) => v + " " + k).join(", "));
 }
 console.log("\n" + ok + " / " + drafts.length + " recette(s) " + (update ? "modifiée(s)" : "écrite(s)") + ".");
 process.exit(ok === drafts.length ? 0 : 1);

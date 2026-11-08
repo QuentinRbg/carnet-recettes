@@ -3,6 +3,9 @@ import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./for
 import { newFinder, propose, rank } from "./finder";
 import { currentSeason, inSeason, isSeasonal } from "./season";
 import { recipeMatches, toggleFilter } from "./filters";
+import { emojiFor, emojiKey, emojiOf, FALLBACK_EMOJI, firstEmoji, normalizeEmojis } from "./emoji";
+import { RAYONS, rayonFor } from "./rayon";
+import type { RayonId } from "./rayon";
 import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, resizeSlots } from "./batch";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
@@ -231,5 +234,81 @@ describe("batch cooking", () => {
     expect(n.slots).toEqual([{ rid: "", n: 1 }, { rid: "a", n: 99 }, { rid: "", n: 1 }]);
     expect(n.checked).toEqual(["k"]);
     expect(n.persons).toBe(2);
+  });
+});
+
+describe("emojis des ingrédients", () => {
+  const cas: [string, string][] = [
+    ["Tomate", "🍅"], ["Tomate concassée", "🍅"], ["Coulis de tomate", "🍅"],
+    ["Pomme de terre", "🥔"], ["Pomme", "🍎"], ["Patate douce", "🍠"], ["Purée Mousline (flocons)", "🥔"],
+    ["Lait", "🥛"], ["Lait de coco", "🥥"], ["Lait de brebis", "🥛"], ["Crème fraîche épaisse", "🥛"],
+    ["Poivre", "🧂"], ["Poivron rouge", "🫑"], ["Piment d'Espelette", "🌶️"],
+    ["Œuf", "🥚"], ["Jaune d'œuf", "🥚"], ["Bœuf haché", "🥩"], ["Steak haché de bœuf", "🥩"], ["Haché végétal", "🌱"],
+    ["Blanc de poulet", "🍗"], ["Bouillon de volaille", "🍲"], ["Saucisse de volaille", "🌭"], ["Saucisson", "🥓"],
+    ["Pâtes", "🍝"], ["Pâtes Orzo", "🍝"], ["Plaques de lasagnes", "🍝"], ["Pâte feuilletée", "🥧"], ["Pâte brisée", "🥧"],
+    ["Riz Arborio", "🍚"], ["Vinaigre de riz", "🫙"], ["Pain à burger", "🍔"], ["Pain de campagne", "🍞"],
+    ["Fromage ail & fines herbes", "🧀"], ["Tomme de brebis", "🧀"], ["Ail", "🧄"], ["Échalote", "🧅"],
+    ["Courgette", "🥒"], ["Courge butternut", "🎃"], ["Noix de muscade", "🧂"], ["Noix de pécan", "🥜"],
+    ["Jus de citron vert", "🍋"], ["Huile d'olive", "🫒"], ["Maïs en conserve", "🌽"], ["Maïzena", "🌾"],
+    ["CAROTTE", "🥕"], ["  carotte  ", "🥕"]
+  ];
+  it.each(cas)("%s → %s", (nom, emoji) => { expect(emojiFor(nom)).toBe(emoji); });
+  it("un aliment inconnu reçoit l'emoji de repli", () => {
+    expect(emojiFor("Truc inconnu")).toBe(FALLBACK_EMOJI);
+    expect(emojiFor("")).toBe(FALLBACK_EMOJI);
+  });
+});
+
+describe("rayons de la liste de courses", () => {
+  const cas: [string, RayonId][] = [
+    ["Tomate", "fruits"], ["Tomate concassée", "epicerie"], ["Coulis de tomate", "epicerie"], ["Pomme de terre", "fruits"],
+    ["Lait", "cremerie"], ["Lait de coco", "epicerie"], ["Lait de brebis", "cremerie"], ["Crème végétale", "cremerie"],
+    ["Thon en boîte", "epicerie"], ["Pavé de saumon", "viandes"], ["Saumon fumé", "viandes"], ["Bœuf haché", "viandes"], ["Haché végétal", "cremerie"],
+    ["Œuf", "cremerie"], ["Jaune d'œuf", "cremerie"], ["Beurre", "cremerie"], ["Fromage ail & fines herbes", "cremerie"], ["Pâte feuilletée", "cremerie"],
+    ["Pâtes", "epicerie"], ["Riz", "epicerie"], ["Vinaigre de riz", "epices"], ["Sel", "epices"], ["Poivre", "epices"], ["Poivron rouge", "fruits"],
+    ["Cumin en poudre", "epices"], ["Ail en poudre", "epices"], ["Ail", "fruits"], ["Noix de muscade", "epices"], ["Noix de pécan", "epicerie"],
+    ["Persil", "fruits"], ["Origan séché", "epices"], ["Lentilles vertes (sèches)", "epicerie"], ["Maïs en conserve", "epicerie"],
+    ["Pain de campagne", "boulangerie"], ["Pain à burger", "boulangerie"], ["Tortillas", "boulangerie"],
+    ["Frites surgelées", "surgeles"], ["Pizza surgelée", "surgeles"], ["Petits pois surgelés", "surgeles"],
+    ["Jus de citron", "epicerie"], ["Citron jaune", "fruits"], ["Sauce soja", "epices"], ["Sauce arrabbiata", "epicerie"],
+    ["Truc inconnu", "autre"], ["", "autre"]
+  ];
+  it.each(cas)("%s → %s", (nom, rayon) => { expect(rayonFor(nom)).toBe(rayon); });
+  it("les rayons sont dans l'ordre d'un parcours de magasin, surgelés en dernier avant « Autre »", () => {
+    const ids = RAYONS.map(r => r.id);
+    expect(ids[0]).toBe("fruits");
+    expect(ids.indexOf("surgeles")).toBeLessThan(ids.indexOf("autre"));
+    expect(ids.indexOf("surgeles")).toBe(ids.length - 2);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("emoji choisi à la main", () => {
+  it("la clé ne dépend ni des accents, ni des majuscules, ni des espaces autour", () => {
+    expect(emojiKey("Pêche")).toBe("peche");
+    expect(emojiKey("  PÊCHE ")).toBe("peche");
+    expect(emojiKey("Œuf")).toBe("oeuf");
+    expect(emojiKey("Jaune d'œuf")).toBe("jaune d'oeuf");
+  });
+  it("l'emoji choisi passe avant celui deviné, et sert pour toutes les graphies du nom", () => {
+    const dict = { peche: "🍑", tomate: "🍎" };
+    expect(emojiOf("Pêche", dict)).toBe("🍑");
+    expect(emojiOf("PÊCHE", dict)).toBe("🍑");
+    expect(emojiOf("Tomate", dict)).toBe("🍎");
+    expect(emojiOf("Carotte", dict)).toBe("🥕");
+    expect(emojiOf("Pêche")).toBe(FALLBACK_EMOJI);
+  });
+  it("trouve le premier emoji d'un texte, même assemblé", () => {
+    expect(firstEmoji("🍑")).toBe("🍑");
+    expect(firstEmoji("ma pêche 🍑 mûre")).toBe("🍑");
+    expect(firstEmoji("🧑‍🍳 cuisinier")).toBe("🧑‍🍳");
+    expect(firstEmoji("🌶️")).toBe("🌶️");
+    expect(firstEmoji("pas d'emoji")).toBeNull();
+    expect(firstEmoji("")).toBeNull();
+  });
+  it("remet en forme le dictionnaire venu de Firestore", () => {
+    expect(normalizeEmojis(null)).toEqual({});
+    expect(normalizeEmojis({})).toEqual({});
+    expect(normalizeEmojis({ map: { peche: "🍑", vide: "", texte: "abc", " ": "🍎", nombre: 4, long: "🍑 mûre" } })).toEqual({ peche: "🍑", long: "🍑" });
   });
 });

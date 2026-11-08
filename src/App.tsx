@@ -13,6 +13,8 @@ import { finderBusy, newFinder } from "./lib/finder";
 import type { Finder } from "./lib/finder";
 import { currentHash, getRoute } from "./lib/route";
 import { normalizeBatch } from "./lib/batch";
+import { normalizeEmojis } from "./lib/emoji";
+import type { EmojiDict } from "./lib/emoji";
 import type { Batch as BatchPlan } from "./lib/batch";
 import type { Cart, Recipe } from "./types";
 import { Batch } from "./views/Batch";
@@ -30,7 +32,7 @@ export default function App() {
   return user ? <Main /> : <Login />;
 }
 
-type ImportPlan = { list: Recipe[]; panier?: Cart; photos?: Record<string, string>; batch?: BatchPlan };
+type ImportPlan = { list: Recipe[]; panier?: Cart; photos?: Record<string, string>; batch?: BatchPlan; emojis?: EmojiDict };
 
 function Main() {
   const { toast, node: toastNode } = useToast();
@@ -92,7 +94,7 @@ function Main() {
     if (!f) return;
     const reader = new FileReader();
     reader.onload = () => {
-      let parsed: { recettes?: Recipe[]; panier?: Cart; photos?: Record<string, unknown>; batch?: unknown };
+      let parsed: { recettes?: Recipe[]; panier?: Cart; photos?: Record<string, unknown>; batch?: unknown; emojis?: unknown };
       try { parsed = JSON.parse(String(reader.result)); } catch { toast("Fichier illisible."); return; }
       const list = Array.isArray(parsed.recettes)
         ? parsed.recettes.filter(r => r && typeof r.id === "string" && r.id && !r.id.includes("/")) : [];
@@ -101,7 +103,7 @@ function Main() {
       const panier = p && Array.isArray(p.items) ? { items: p.items, checked: Array.isArray(p.checked) ? p.checked : [] } : undefined;
       const photos: Record<string, string> = {};
       Object.entries(parsed.photos ?? {}).forEach(([k, v]) => { if (typeof v === "string" && v.startsWith("data:image/")) photos[k] = v; });
-      setImportPlan({ list, panier, photos, batch: parsed.batch ? normalizeBatch(parsed.batch) : undefined });
+      setImportPlan({ list, panier, photos, batch: parsed.batch ? normalizeBatch(parsed.batch) : undefined, emojis: normalizeEmojis({ map: parsed.emojis }) });
     };
     reader.readAsText(f);
   }
@@ -109,7 +111,7 @@ function Main() {
   async function exportAll() {
     let photos: Record<string, string> = {};
     try { photos = await data.fetchPhotos(); } catch { toast("Les photos n'ont pas pu être exportées."); }
-    const out = { app: "carnet-recettes", version: 2, exportedAt: new Date().toISOString(), recettes: data.recipes, panier: data.cart, batch: data.batch, photos };
+    const out = { app: "carnet-recettes", version: 2, exportedAt: new Date().toISOString(), recettes: data.recipes, panier: data.cart, batch: data.batch, emojis: data.emojis, photos };
     const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -165,7 +167,7 @@ function Main() {
           onCancel={() => setImportPlan(null)}
           onOk={() => {
             const plan = importPlan; setImportPlan(null);
-            data.importAll(plan.list, plan.panier, plan.photos, plan.batch)
+            data.importAll(plan.list, plan.panier, plan.photos, plan.batch, plan.emojis)
               .then(() => toast(plan.list.length + (plan.list.length > 1 ? " recettes importées" : " recette importée")))
               .catch(() => toast("Import impossible, réessaie."));
           }} />

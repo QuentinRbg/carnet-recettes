@@ -150,7 +150,7 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 .form label input, .form label select, .form label textarea { font-size: 1rem; color: var(--fg); }
 .form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ing-rows { display: grid; gap: 8px; }
-.ing-row { display: grid; grid-template-columns: minmax(0, 1fr) 68px 92px 36px; gap: 6px; align-items: center; }
+.ing-row { display: grid; grid-template-columns: minmax(0, 1fr) 62px 88px 34px; gap: 6px; align-items: center; }
 .ing-row .icon-btn { padding: 6px; font-size: 1.2rem; }
 .units-help { font-size: .8rem; color: var(--muted); margin: 0; }
 
@@ -210,6 +210,8 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 .shop li:last-child { border-bottom: 0; }
 .shop label { display: flex; align-items: center; gap: 12px; padding: 11px 2px; cursor: pointer; }
 .shop input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.shop .emo { flex: none; width: 1.7em; text-align: center; font-size: 1.3rem; line-height: 1; }
+.shop li.done .emo { opacity: .4; filter: grayscale(1); }
 .shop .it { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .shop .q { font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
 .shop li.done .it, .shop li.done .q { color: var(--muted); text-decoration: line-through; }
@@ -293,3 +295,29 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 .pick-img.ph .ico { width: 24px; height: 24px; opacity: .6; }
 .pick-text { display: grid; gap: 2px; min-width: 0; }
 .picker .name { display: block; -webkit-line-clamp: 2; }
+
+/* Liste de courses regroupée par rayon */
+.shop-groups { display: grid; gap: 4px; }
+.shop-group h4 { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding: 0 2px 6px; font: 700 .78rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-bottom: 1px solid var(--line); }
+.shop-group:first-child h4 { margin-top: 4px; }
+.shop-group h4 .count { margin-left: auto; min-width: 1.6em; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .78rem; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* Emoji d'un ingrédient dans le formulaire d'édition */
+.name-cell { position: relative; min-width: 0; }
+.name-cell .emo-btn { position: absolute; left: 5px; top: 50%; z-index: 1; width: 30px; height: 30px; padding: 0; transform: translateY(-50%); border: 0; border-radius: 8px; background: transparent; font-size: 1.15rem; line-height: 1; cursor: pointer; }
+.name-cell .emo-btn:hover:not(:disabled) { background: var(--accent-soft); }
+.name-cell .emo-btn:disabled { opacity: .45; cursor: default; }
+.name-cell input[type=text] { padding-left: 38px; }
+
+/* Tiroir « Emoji de l'ingrédient » */
+.emoji-picker .drawer-body { padding-top: 44px; }
+.emoji-head { display: flex; align-items: center; gap: 14px; }
+.emoji-head h2 { font-size: 1.05rem; overflow-wrap: anywhere; }
+.emoji-big { flex: none; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 16px; background: var(--accent-soft); font-size: 2.2rem; }
+.emoji-group { display: grid; gap: 8px; }
+.emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.emoji-grid button { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.emoji-grid button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.emoji-grid button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.emoji-custom { display: flex; gap: 8px; }
+.emoji-custom input { flex: 1; min-width: 0; }

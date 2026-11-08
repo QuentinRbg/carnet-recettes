@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useApp } from "../AppContext";
+import { EmojiPicker } from "../components/EmojiPicker";
 import { CATS, COMPS, ENVIES, SAISONS, UNITS } from "../constants";
 import { usePhoto } from "../hooks/usePhoto";
+import { emojiFor, emojiKey, emojiOf } from "../lib/emoji";
 import { ingCatalog, ingOf, norm, portionsOf } from "../lib/format";
 import { processPhoto } from "../lib/image";
 import type { Photo } from "../lib/image";
@@ -106,7 +108,8 @@ export type PhotoChange = Photo | "remove" | undefined;
 type Props = { r: Recipe; onSave: (patch: Partial<RecipeInput>, photo: PhotoChange) => void; onCancel: () => void };
 
 export function EditForm({ r, onSave, onCancel }: Props) {
-  const { recipes } = useApp();
+  const { recipes, emojis, setIngredientEmoji } = useApp();
+  const [emojiRow, setEmojiRow] = useState<Row | null>(null);
   // L'état du formulaire est copié une fois : les mises à jour en direct n'écrasent pas la saisie.
   const [name, setName] = useState(r.name || "");
   const [cat, setCat] = useState(r.category);
@@ -205,9 +208,16 @@ export function EditForm({ r, onSave, onCancel }: Props) {
         <div className="ing-rows" ref={rowsBox}>
           {rows.map((row, i) => (
             <div className="ing-row" key={row.id}>
-              <IngredientPicker value={row.n} label={"Ingrédient " + (i + 1)} catalog={catalog}
-                onText={v => patchRow(row.id, { n: v })}
-                onPick={unit => { if (unit && !row.u) patchRow(row.id, { u: unit }); qRefs.current[row.id]?.focus(); }} />
+              <div className="name-cell">
+                <button className="emo-btn" type="button" disabled={!row.n.trim()}
+                  aria-label={row.n.trim() ? "Choisir l'emoji de " + row.n.trim() : "Choisir l'emoji (écris d'abord le nom)"}
+                  title="Choisir l'emoji" onClick={() => setEmojiRow(row)}>
+                  {row.n.trim() ? emojiOf(row.n, emojis) : "🙂"}
+                </button>
+                <IngredientPicker value={row.n} label={"Ingrédient " + (i + 1)} catalog={catalog}
+                  onText={v => patchRow(row.id, { n: v })}
+                  onPick={unit => { if (unit && !row.u) patchRow(row.id, { u: unit }); qRefs.current[row.id]?.focus(); }} />
+              </div>
               <input ref={el => { qRefs.current[row.id] = el; }} type="text" inputMode="decimal" placeholder="Qté"
                 aria-label={"Quantité " + (i + 1)} value={row.q} onChange={e => patchRow(row.id, { q: e.target.value })} />
               <select aria-label={"Unité " + (i + 1)} value={row.u} onChange={e => patchRow(row.id, { u: e.target.value })}>
@@ -247,6 +257,11 @@ export function EditForm({ r, onSave, onCancel }: Props) {
         <button className="btn primary" type="submit" disabled={photoBusy}>Enregistrer</button>
         <button className="btn" type="button" onClick={onCancel}>Annuler</button>
       </div>
+      {emojiRow ? (
+        <EmojiPicker name={emojiRow.n.trim()} current={emojis[emojiKey(emojiRow.n)]} auto={emojiFor(emojiRow.n)}
+          onClose={() => setEmojiRow(null)}
+          onPick={e => { setIngredientEmoji(emojiRow.n, e); setEmojiRow(null); }} />
+      ) : null}
     </form>
   );
 }
