@@ -1,5 +1,9 @@
 # Export des recettes : données personnelles, ne pas publier
 recettes-export.json
 
+# Dépendances et build
+node_modules
+dist
+
 # macOS
 .DS_Store
