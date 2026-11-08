@@ -33,7 +33,7 @@ function Main() {
   const { toast, node: toastNode } = useToast();
   const data = useData(toast);
   const [route, setRoute] = useState(getRoute);
-  const [listUi, setListUi] = useState<ListUi>({ filterCat: "Toutes", query: "" });
+  const [listUi, setListUi] = useState<ListUi>({ filters: [], query: "" });
   const [finder, setFinder] = useState<Finder | null>(null);
   const finderRef = useRef<Finder | null>(null);
   const lastView = useRef(route.v);
