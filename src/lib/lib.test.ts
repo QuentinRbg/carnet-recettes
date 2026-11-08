@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./format";
+import { aggregate, fmtTime, ingredientKey, isComplete, norm, portionsOf, qtyText, shopQtyText } from "./format";
 import { newFinder, propose, rank } from "./finder";
 import { currentSeason, inSeason, isSeasonal } from "./season";
 import { recipeMatches, toggleFilter } from "./filters";
@@ -42,7 +42,7 @@ describe("aggregate", () => {
   it("divise par le nombre de personnes de la recette", () => {
     const quiche = r("q", { portions: 4, ing: [{ n: "Œuf", q: 3, u: "pièce" }, { n: "Brocoli", q: 300, u: "g" }] });
     const out = aggregate({ items: [{ rid: "q", n: 2 }], checked: [] }, [quiche]);
-    expect(out.find(x => x.key === "œuf|pièce")?.q).toBe(1.5);
+    expect(out.find(x => x.key === "oeuf|pièce")?.q).toBe(1.5);
     expect(out.find(x => x.key === "brocoli|g")?.q).toBe(150);
     expect(aggregate({ items: [{ rid: "q", n: 4 }], checked: [] }, [quiche]).find(x => x.key === "brocoli|g")?.q).toBe(300);
   });
@@ -310,5 +310,82 @@ describe("emoji choisi à la main", () => {
     expect(normalizeEmojis(null)).toEqual({});
     expect(normalizeEmojis({})).toEqual({});
     expect(normalizeEmojis({ map: { peche: "🍑", vide: "", texte: "abc", " ": "🍎", nombre: 4, long: "🍑 mûre" } })).toEqual({ peche: "🍑", long: "🍑" });
+  });
+});
+
+describe("fusion des ingrédients dans la liste de courses", () => {
+  const cart = (...ids: string[]) => ({ items: ids.map(rid => ({ rid, n: 1 })), checked: [] });
+  const ligne = (out: ReturnType<typeof aggregate>, nom: string) => out.filter(x => ingredientKey(x.name) === ingredientKey(nom));
+
+  it("la clé ignore accents, majuscules, « (facultatif) » et le pluriel", () => {
+    expect(ingredientKey("Oignons")).toBe(ingredientKey("oignon"));
+    expect(ingredientKey("Ciboulette (facultatif)")).toBe(ingredientKey("Ciboulette"));
+    expect(ingredientKey("Coriandre fraîche (facultatif)")).toBe(ingredientKey("coriandre fraiche"));
+    expect(ingredientKey("Œuf")).toBe("oeuf");
+    expect(ingredientKey("Pâtes")).not.toBe(ingredientKey("Pâte brisée"));
+    expect(ingredientKey("Riz")).not.toBe(ingredientKey("Riz Arborio"));
+  });
+  it("additionne cuillères à soupe et à café : huile d'olive", () => {
+    const recettes = [r("a", { ing: [{ n: "Huile d'olive", q: 2, u: "càs" }] }), r("b", { ing: [{ n: "Huile d'olive", q: 4, u: "càc" }] })];
+    const out = ligne(aggregate(cart("a", "b"), recettes), "Huile d'olive");
+    expect(out).toHaveLength(1);
+    expect(out[0].q).toBe(10);
+    expect(shopQtyText(out[0])).toBe("3 càs 1 càc");
+  });
+  it("affiche les cuillères à café seules, ou en cuillères à soupe pleines", () => {
+    expect(shopQtyText({ key: "k", name: "x", u: "càc", q: 2 })).toBe("2 càc");
+    expect(shopQtyText({ key: "k", name: "x", u: "càc", q: 3 })).toBe("1 càs");
+    expect(shopQtyText({ key: "k", name: "x", u: "càc", q: 0.13 })).toBe("0,13 càc");
+    expect(shopQtyText({ key: "k", name: "x", u: "g", q: 1500 })).toBe("1,5 kg");
+  });
+  it("un liquide en grammes, en millilitres et en cuillères devient une seule ligne en millilitres", () => {
+    const recettes = [
+      r("a", { ing: [{ n: "Crème fraîche épaisse", q: 100, u: "g" }] }),
+      r("b", { ing: [{ n: "Crème fraîche épaisse", q: 50, u: "ml" }] }),
+      r("c", { ing: [{ n: "Crème fraîche épaisse", q: 2, u: "càs" }] })
+    ];
+    const out = ligne(aggregate(cart("a", "b", "c"), recettes), "Crème fraîche épaisse");
+    expect(out).toHaveLength(1);
+    expect(out[0].u).toBe("ml");
+    expect(out[0].q).toBe(180);
+  });
+  it("un liquide seulement en cuillères reste en cuillères", () => {
+    const recettes = [r("a", { ing: [{ n: "Sauce soja", q: 1, u: "càs" }] }), r("b", { ing: [{ n: "Sauce soja", q: 3, u: "càc" }] })];
+    const out = ligne(aggregate(cart("a", "b"), recettes), "Sauce soja");
+    expect(out).toHaveLength(1);
+    expect(out[0].u).toBe("càc");
+    expect(out[0].q).toBe(6);
+  });
+  it("un ingrédient qui n'est pas un liquide garde ses grammes à part, mais fusionne ses cuillères", () => {
+    const recettes = [
+      r("a", { ing: [{ n: "Farine", q: 100, u: "g" }, { n: "Sucre", q: 1, u: "càs" }] }),
+      r("b", { ing: [{ n: "Farine", q: 1, u: "càc" }, { n: "Sucre", q: 3, u: "càc" }] })
+    ];
+    const out = aggregate(cart("a", "b"), recettes);
+    expect(ligne(out, "Farine")).toHaveLength(2);
+    expect(ligne(out, "Sucre")).toHaveLength(1);
+    expect(ligne(out, "Sucre")[0].q).toBe(6);
+  });
+  it("fusionne « (facultatif) » et le pluriel, et n'affiche « (facultatif) » que si tout est facultatif", () => {
+    const recettes = [
+      r("a", { ing: [{ n: "Ciboulette (facultatif)", q: 1, u: "càs" }, { n: "Oignons", q: 1, u: "pièce" }] }),
+      r("b", { ing: [{ n: "Ciboulette", q: 1, u: "càs" }, { n: "Oignon", q: 2, u: "pièce" }] }),
+      r("c", { ing: [{ n: "Coriandre fraîche (facultatif)", q: 1, u: "bouquet" }] })
+    ];
+    const out = aggregate(cart("a", "b", "c"), recettes);
+    expect(ligne(out, "Ciboulette")).toHaveLength(1);
+    expect(ligne(out, "Ciboulette")[0].name).toBe("Ciboulette");
+    expect(ligne(out, "Oignon")).toHaveLength(1);
+    expect(ligne(out, "Oignon")[0].q).toBe(3);
+    expect(ligne(out, "Coriandre fraîche")[0].name).toBe("Coriandre fraîche (facultatif)");
+  });
+  it("ne convertit pas les pièces en grammes", () => {
+    const recettes = [r("a", { ing: [{ n: "Tomate", q: 3, u: "pièce" }] }), r("b", { ing: [{ n: "Tomate", q: 125, u: "g" }] })];
+    expect(ligne(aggregate(cart("a", "b"), recettes), "Tomate")).toHaveLength(2);
+  });
+  it("tient compte du nombre de personnes de chaque plat", () => {
+    const recettes = [r("a", { portions: 2, ing: [{ n: "Huile d'olive", q: 2, u: "càs" }] })];
+    const out = aggregate({ items: [{ rid: "a", n: 4 }], checked: [] }, recettes);
+    expect(out[0].q).toBe(12);
   });
 });
