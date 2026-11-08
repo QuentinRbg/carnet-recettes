@@ -70,7 +70,7 @@ export function RecipeView({ id }: { id: string }) {
         <p className="meta" style={{ margin: "8px 0 0" }}>
           <span className="tag">{r.category || "Autre"}</span>
           {r.readyMade ? <span className="tag">Prêt à manger</span> : null}
-          {r.time ? <span>{r.readyMade ? "Cuisson " : ""}{fmtTime(r.time)}</span> : null}
+          {r.time ? <span>{fmtTime(r.time)}</span> : null}
           {base > 1 ? <span>{base} pers.</span> : null}
           {(r.envies || []).map(x => <span key={x} className="tag alt">{x}</span>)}
           {(r.composants || []).map(x => <span key={x} className="tag">{x}</span>)}
