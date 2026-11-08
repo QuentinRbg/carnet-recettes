@@ -295,3 +295,9 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 .pick-img.ph .ico { width: 24px; height: 24px; opacity: .6; }
 .pick-text { display: grid; gap: 2px; min-width: 0; }
 .picker .name { display: block; -webkit-line-clamp: 2; }
+
+/* Liste de courses regroupée par rayon */
+.shop-groups { display: grid; gap: 4px; }
+.shop-group h4 { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding: 0 2px 6px; font: 700 .78rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-bottom: 1px solid var(--line); }
+.shop-group:first-child h4 { margin-top: 4px; }
+.shop-group h4 .count { margin-left: auto; min-width: 1.6em; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .78rem; text-align: center; font-variant-numeric: tabular-nums; }

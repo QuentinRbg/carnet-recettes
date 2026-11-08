@@ -68,9 +68,12 @@ const RULES: [RegExp, string][] = [
   [/\bcrepes?\b/, "🥞"]
 ];
 
+/** Nom sans accents ni majuscules, « œ » devenant « oe » : base de toutes les règles. */
+export const plainName = (name: string): string => norm(name).replace(/œ/g, "oe");
+
 /** Emoji d'un ingrédient d'après son nom, pour repérer d'un coup d'œil dans une longue liste de courses. */
 export function emojiFor(name: string): string {
-  const n = norm(name).replace(/œ/g, "oe");
+  const n = plainName(name);
   for (const [re, emoji] of RULES) if (re.test(n)) return emoji;
   return FALLBACK_EMOJI;
 }

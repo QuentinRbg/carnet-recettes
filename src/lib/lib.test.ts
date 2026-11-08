@@ -4,6 +4,8 @@ import { newFinder, propose, rank } from "./finder";
 import { currentSeason, inSeason, isSeasonal } from "./season";
 import { recipeMatches, toggleFilter } from "./filters";
 import { emojiFor, FALLBACK_EMOJI } from "./emoji";
+import { RAYONS, rayonFor } from "./rayon";
+import type { RayonId } from "./rayon";
 import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, resizeSlots } from "./batch";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
@@ -254,5 +256,29 @@ describe("emojis des ingrédients", () => {
   it("un aliment inconnu reçoit l'emoji de repli", () => {
     expect(emojiFor("Truc inconnu")).toBe(FALLBACK_EMOJI);
     expect(emojiFor("")).toBe(FALLBACK_EMOJI);
+  });
+});
+
+describe("rayons de la liste de courses", () => {
+  const cas: [string, RayonId][] = [
+    ["Tomate", "fruits"], ["Tomate concassée", "epicerie"], ["Coulis de tomate", "epicerie"], ["Pomme de terre", "fruits"],
+    ["Lait", "cremerie"], ["Lait de coco", "epicerie"], ["Lait de brebis", "cremerie"], ["Crème végétale", "cremerie"],
+    ["Thon en boîte", "epicerie"], ["Pavé de saumon", "viandes"], ["Saumon fumé", "viandes"], ["Bœuf haché", "viandes"], ["Haché végétal", "cremerie"],
+    ["Œuf", "cremerie"], ["Jaune d'œuf", "cremerie"], ["Beurre", "cremerie"], ["Fromage ail & fines herbes", "cremerie"], ["Pâte feuilletée", "cremerie"],
+    ["Pâtes", "epicerie"], ["Riz", "epicerie"], ["Vinaigre de riz", "epices"], ["Sel", "epices"], ["Poivre", "epices"], ["Poivron rouge", "fruits"],
+    ["Cumin en poudre", "epices"], ["Ail en poudre", "epices"], ["Ail", "fruits"], ["Noix de muscade", "epices"], ["Noix de pécan", "epicerie"],
+    ["Persil", "fruits"], ["Origan séché", "epices"], ["Lentilles vertes (sèches)", "epicerie"], ["Maïs en conserve", "epicerie"],
+    ["Pain de campagne", "boulangerie"], ["Pain à burger", "boulangerie"], ["Tortillas", "boulangerie"],
+    ["Frites surgelées", "surgeles"], ["Pizza surgelée", "surgeles"], ["Petits pois surgelés", "surgeles"],
+    ["Jus de citron", "epicerie"], ["Citron jaune", "fruits"], ["Sauce soja", "epices"], ["Sauce arrabbiata", "epicerie"],
+    ["Truc inconnu", "autre"], ["", "autre"]
+  ];
+  it.each(cas)("%s → %s", (nom, rayon) => { expect(rayonFor(nom)).toBe(rayon); });
+  it("les rayons sont dans l'ordre d'un parcours de magasin, surgelés en dernier avant « Autre »", () => {
+    const ids = RAYONS.map(r => r.id);
+    expect(ids[0]).toBe("fruits");
+    expect(ids.indexOf("surgeles")).toBeLessThan(ids.indexOf("autre"));
+    expect(ids.indexOf("surgeles")).toBe(ids.length - 2);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

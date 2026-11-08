@@ -35,7 +35,6 @@ export function Courses() {
   const list = aggregate(cart, recipes);
   const isOn = (key: string) => cart.checked.includes(key);
   const doneCount = list.filter(x => isOn(x.key)).length;
-  list.sort((a, b) => Number(isOn(a.key)) - Number(isOn(b.key)));
 
   return (
     <section className="view">

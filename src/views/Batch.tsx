@@ -19,7 +19,6 @@ export function Batch() {
   const shop = aggregate(batchToCart(batch), recipes);
   const isOn = (key: string) => batch.checked.includes(key);
   const doneCount = shop.filter(x => isOn(x.key)).length;
-  shop.sort((a, b) => Number(isOn(a.key)) - Number(isOn(b.key)));
   const empties = batch.slots.filter(s => !byId(s.rid)).length;
 
   return (

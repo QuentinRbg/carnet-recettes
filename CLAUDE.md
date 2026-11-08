@@ -8,7 +8,7 @@ Commandes : `npm run dev` (http://localhost:5173/carnet-recettes/), `npm test`, 
 - `index.html` : page racine de Vite (charge `src/main.tsx` et les polices).
 - `src/main.tsx`, `src/App.tsx` : point d'entrée, connexion, onglets, routage par hash (`#courses`, `#finder`, `#r-<id>`), fenêtres de confirmation, export/import.
 - `src/constants.ts` : `CATS`, `UNITS`, `ENVIES`, `COMPS`, `BASICS`, `ALERTS`.
-- `src/lib/emoji.ts` : emoji d'un ingrédient d'après son nom (règles dans l'ordre, la première qui correspond gagne ; 🥫 par défaut), affiché dans `ShopList` (liste de courses du panier et du batch). Pour un nouvel ingrédient mal reconnu, ajouter une règle AVANT la plus générale et un cas dans `lib.test.ts`.
+- `src/lib/emoji.ts` : emoji d'un ingrédient d'après son nom (règles dans l'ordre, la première qui correspond gagne ; 🥫 par défaut), affiché dans `ShopList` (liste de courses du panier et du batch). `src/lib/rayon.ts` : rayon d'un ingrédient (fruits et légumes, boulangerie, viandes et poissons, crèmerie, épicerie, épices et condiments, surgelés, autre), dans l'ordre d'un parcours de magasin ; `ShopList` regroupe par rayon. Même principe de règles ordonnées : le cas particulier avant le général. Pour un nouvel ingrédient mal reconnu, ajouter une règle AVANT la plus générale et un cas dans `lib.test.ts`.
 - `src/lib/format.ts` (formats, `aggregate`, catalogue d'ingrédients), `src/lib/finder.ts` (`QUIZ`, `rank`, `propose`), `src/lib/route.ts`. Testés dans `src/lib/lib.test.ts`.
 - `src/hooks/useData.ts` : recettes et panier en direct depuis Firestore. `src/hooks/useAuth.ts` : connexion.
 - `src/views/` : `RecipeList`, `RecipeView`, `EditForm`, `Courses`, `Batch`, `MealFinder`, `Login`. `src/components/` : `Dialog`, `Stepper`, `Toast`, icônes.
