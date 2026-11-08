@@ -4,9 +4,10 @@
 //   node scripts/add-recipes.ts recettes-a-ajouter.json            vérifie et affiche, n'écrit rien
 //   node scripts/add-recipes.ts recettes-a-ajouter.json --write    écrit dans la base
 //
-// La clé est lue dans ~/.config/carnet-recettes/service-account.json (ou CARNET_KEY=chemin).
-// Elle ne doit JAMAIS être dans le dépôt.
-import { readFileSync, existsSync } from "node:fs";
+// La clé est cherchée dans cet ordre : CARNET_KEY=chemin, puis un fichier service-account*.json ou
+// *-firebase-adminsdk-*.json à la racine du dépôt (ignoré par git), puis ~/.config/carnet-recettes/service-account.json.
+// Elle ne doit JAMAIS être commitée.
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { initializeApp, cert } from "firebase-admin/app";
@@ -14,7 +15,13 @@ import { getFirestore } from "firebase-admin/firestore";
 import { CATS, COMPS, ENVIES, UNITS } from "../src/constants.ts";
 
 const PROJECT_ID = "carnet-recettes-bbbf7";
-const KEY_PATH = process.env.CARNET_KEY || join(homedir(), ".config", "carnet-recettes", "service-account.json");
+const ROOT = join(import.meta.dirname, "..");
+function findKey(): string {
+  if (process.env.CARNET_KEY) return process.env.CARNET_KEY;
+  const local = readdirSync(ROOT).find(f => /^service-account.*\.json$/.test(f) || /-firebase-adminsdk-.*\.json$/.test(f));
+  return local ? join(ROOT, local) : join(homedir(), ".config", "carnet-recettes", "service-account.json");
+}
+const KEY_PATH = findKey();
 
 const [file, ...flags] = process.argv.slice(2);
 const write = flags.includes("--write");
