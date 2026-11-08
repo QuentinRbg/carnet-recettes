@@ -6,7 +6,7 @@ import { recipeMatches, toggleFilter } from "./filters";
 import { emojiFor, emojiKey, emojiOf, FALLBACK_EMOJI, firstEmoji, normalizeEmojis } from "./emoji";
 import { RAYONS, rayonFor } from "./rayon";
 import type { RayonId } from "./rayon";
-import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, resizeSlots } from "./batch";
+import { batchToCart, defaultBatch, dropRecipe, fillRandom, filledSlots, normalizeBatch, randomGroups, resizeSlots } from "./batch";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
 
@@ -214,35 +214,55 @@ describe("batch cooking", () => {
     const b = dropRecipe(full(["a", "b", "a"]), "a");
     expect(b.slots.map(x => x.rid)).toEqual(["", "b", ""]);
   });
-  it("remplit au hasard seulement les cases libres, sans doublon, au bon nombre de personnes", () => {
-    const b = { ...defaultBatch(), slots: [{ rid: "a", n: 4 }, { rid: "", n: 1 }, { rid: "", n: 1 }], persons: 3 };
-    const out = fillRandom(b, ["a", "b", "c", "d"], () => 0.5);
+  it("répartit les cases en groupes de 2 ou 3, sans case seule sauf s'il n'y en a qu'une", () => {
+    for (let total = 1; total <= 12; total++) {
+      for (const r of [0, 0.3, 0.6, 0.99]) {
+        const g = randomGroups(total, () => r);
+        expect(g.reduce((a, c) => a + c, 0)).toBe(total);
+        if (total >= 2) g.forEach(x => { expect(x).toBeGreaterThanOrEqual(2); expect(x).toBeLessThanOrEqual(3); });
+      }
+    }
+    expect(randomGroups(1)).toEqual([1]);
+    expect(randomGroups(0)).toEqual([]);
+    expect(randomGroups(6, () => 0)).toEqual([2, 2, 2]);
+    expect(randomGroups(6, () => 0.99)).toEqual([3, 3]);
+    expect(randomGroups(4, () => 0.99)).toEqual([2, 2]);
+  });
+  it("au hasard, une même recette occupe 2 ou 3 cases côte à côte, pour le nombre de personnes réglé", () => {
+    const b = { ...defaultBatch(), persons: 1 };
+    for (const r of [0, 0.5, 0.99]) {
+      const out = fillRandom(b, ["a", "b", "c", "d", "e", "f"], () => r);
+      const ids = out.slots.map(x => x.rid);
+      expect(ids).not.toContain("");
+      const compte: Record<string, number> = {};
+      ids.forEach(id => { compte[id] = (compte[id] || 0) + 1; });
+      Object.values(compte).forEach(n => { expect(n).toBeGreaterThanOrEqual(2); expect(n).toBeLessThanOrEqual(3); });
+      // côte à côte : chaque recette forme un seul bloc
+      expect(ids.filter((id, i) => i === 0 || id !== ids[i - 1])).toHaveLength(Object.keys(compte).length);
+      out.slots.forEach(x => expect(x.n).toBe(1));
+    }
+  });
+  it("au hasard, ne touche pas aux cases déjà remplies et n'y reprend pas la même recette", () => {
+    const b = { ...defaultBatch(), slots: [{ rid: "a", n: 4 }, { rid: "", n: 1 }, { rid: "", n: 1 }, { rid: "", n: 1 }, { rid: "b", n: 2 }], persons: 3 };
+    const out = fillRandom(b, ["a", "b", "c", "d", "e"], () => 0.5);
     expect(out.slots[0]).toEqual({ rid: "a", n: 4 });
-    const ids = out.slots.map(x => x.rid);
-    expect(new Set(ids).size).toBe(3);
-    expect(ids).not.toContain("");
-    expect(out.slots[1].n).toBe(3);
+    expect(out.slots[4]).toEqual({ rid: "b", n: 2 });
+    const nouveaux = out.slots.slice(1, 4);
+    expect(nouveaux.every(x => x.rid !== "" && x.rid !== "a" && x.rid !== "b")).toBe(true);
+    expect(nouveaux.every(x => x.n === 3)).toBe(true);
   });
-  it("au hasard, chaque plat a 2 ou 3 portions", () => {
-    const b = { ...defaultBatch(), persons: 2 };
-    const bas = fillRandom(b, ["a", "b", "c", "d", "e", "f"], () => 0);
-    const haut = fillRandom(b, ["a", "b", "c", "d", "e", "f"], () => 0.999);
-    expect(filledSlots(bas).every(s => s.n === 2)).toBe(true);
-    expect(filledSlots(haut).every(s => s.n === 3)).toBe(true);
-    const melange = fillRandom(b, ["a", "b", "c", "d", "e", "f"], Math.random);
-    expect(filledSlots(melange).every(s => s.n === 2 || s.n === 3)).toBe(true);
-  });
-  it("au hasard, on ne propose jamais moins de 2 portions, même si 1 personne est réglé", () => {
-    const out = fillRandom({ ...defaultBatch(), persons: 1 }, ["a", "b", "c"], () => 0);
-    expect(filledSlots(out).every(s => s.n >= 2)).toBe(true);
-  });
-  it("au hasard, un nombre de personnes réglé plus haut est respecté", () => {
-    const out = fillRandom({ ...defaultBatch(), persons: 5 }, ["a", "b", "c"], () => 0.7);
-    expect(filledSlots(out).every(s => s.n === 5)).toBe(true);
-  });
-  it("laisse des cases libres s'il n'y a pas assez de recettes", () => {
+  it("au hasard, s'il y a peu de recettes, elles se répartissent les cases (plus de 3 chacune si besoin)", () => {
     const out = fillRandom(defaultBatch(), ["a", "b"], () => 0.1);
-    expect(filledSlots(out)).toHaveLength(2);
+    expect(filledSlots(out)).toHaveLength(6);
+    expect(new Set(out.slots.map(x => x.rid))).toEqual(new Set(["a", "b"]));
+    const un = fillRandom(defaultBatch(), ["a"], () => 0.1);
+    expect(un.slots.every(x => x.rid === "a")).toBe(true);
+  });
+  it("au hasard, sans recette disponible ou sans case libre, rien ne change", () => {
+    const b = defaultBatch();
+    expect(fillRandom(b, [], () => 0.5)).toBe(b);
+    const plein = { ...b, slots: b.slots.map(() => ({ rid: "a", n: 2 })) };
+    expect(fillRandom(plein, ["b", "c"], () => 0.5)).toBe(plein);
   });
   it("remet en forme un document abîmé ou absent", () => {
     expect(normalizeBatch(null)).toEqual(defaultBatch());

@@ -16,6 +16,12 @@ export function Batch() {
 
   const byId = (id: string) => recipes.find(r => r.id === id);
   const filled = filledSlots(batch).filter(s => byId(s.rid));
+  // Une recette qui occupe plusieurs cases n'apparaît qu'une fois dans « Recettes à cuisiner », avec le total de personnes.
+  const cooking = filled.reduce<{ rid: string; n: number; cases: number }[]>((acc, s) => {
+    const e = acc.find(x => x.rid === s.rid);
+    if (e) { e.n += s.n; e.cases++; } else acc.push({ rid: s.rid, n: s.n, cases: 1 });
+    return acc;
+  }, []);
   const shop = aggregate(batchToCart(batch), recipes);
   const isOn = (key: string) => batch.checked.includes(key);
   const doneCount = shop.filter(x => isOn(x.key)).length;
@@ -86,7 +92,7 @@ export function Batch() {
           <button className="btn small danger" type="button" disabled={filled.length === 0} onClick={() => setConfirmClear(true)}>Vider le plan</button>
         )}
       </div>
-      <p className="hint" id="randomHint">Au hasard : chaque plat a 2 ou 3 portions.</p>
+      <p className="hint" id="randomHint">Au hasard : chaque recette occupe 2 ou 3 cases.</p>
 
       {filled.length === 0 ? (
         <div className="state">
@@ -110,9 +116,9 @@ export function Batch() {
           </div>
 
           <div className="panel">
-            <h3>Recettes à cuisiner ({filled.length})</h3>
+            <h3>Recettes à cuisiner ({cooking.length})</h3>
             <ul className="batch-recipes">
-              {filled.map((s, i) => {
+              {cooking.map((s, i) => {
                 const r = byId(s.rid)!;
                 const steps = lines(r.steps);
                 return (
@@ -120,7 +126,7 @@ export function Batch() {
                     <details>
                       <summary>
                         <span className="name">{r.name}</span>
-                        <span className="sub" style={{ margin: 0 }}>{s.n} pers.{r.time ? " · " + fmtTime(r.time) : ""}</span>
+                        <span className="sub" style={{ margin: 0 }}>{s.n} pers.{s.cases > 1 ? " · " + s.cases + " plats" : ""}{r.time ? " · " + fmtTime(r.time) : ""}</span>
                       </summary>
                       {steps.length ? (
                         <ol className="steps">
