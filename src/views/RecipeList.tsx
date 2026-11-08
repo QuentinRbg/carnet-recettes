@@ -6,19 +6,14 @@ import { Dialog } from "../components/Dialog";
 import { PlateIcon } from "../components/Icons";
 import { CATS } from "../constants";
 import { fmtTime, ingOf, norm } from "../lib/format";
-import { inSeason } from "../lib/season";
+import { MOOD_FILTERS, TYPE_FILTERS, recipeMatches, toggleFilter } from "../lib/filters";
 import type { Recipe } from "../types";
 
-const READY = "Prêt à manger";
-const SEASON = "De saison";
-
-export type ListUi = { filterCat: string; query: string };
+/** Filtres cochés (plusieurs possibles) et texte recherché. */
+export type ListUi = { filters: string[]; query: string };
 
 function matches(r: Recipe, ui: ListUi): boolean {
-  if (ui.filterCat === "Favorites" && !r.fav) return false;
-  if (ui.filterCat === READY && !r.readyMade) return false;
-  if (ui.filterCat === SEASON && !inSeason(r)) return false;
-  if (ui.filterCat !== "Toutes" && ui.filterCat !== "Favorites" && ui.filterCat !== READY && ui.filterCat !== SEASON && r.category !== ui.filterCat) return false;
+  if (!recipeMatches(r, ui.filters)) return false;
   if (!ui.query.trim()) return true;
   const q = norm(ui.query.trim());
   if (norm(r.name).includes(q) || norm(r.category).includes(q)) return true;
@@ -37,6 +32,16 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
   const { recipes, loaded, go } = useApp();
   const [adding, setAdding] = useState(false);
   const shown = recipes.filter(r => matches(r, ui));
+  // Un filtre sans aucune recette n'est montré que s'il est coché.
+  const chip = (c: string) => {
+    const n = recipes.filter(r => recipeMatches(r, [c])).length;
+    const on = ui.filters.includes(c);
+    if (n === 0 && !on) return null;
+    return (
+      <button key={c} className="chip" type="button" aria-pressed={on}
+        onClick={() => setUi({ ...ui, filters: toggleFilter(ui.filters, c) })}>{c} {n}</button>
+    );
+  };
 
   return (
     <section className="view">
@@ -45,15 +50,13 @@ export function RecipeList({ ui, setUi }: { ui: ListUi; setUi: (u: ListUi) => vo
           onChange={e => setUi({ ...ui, query: e.target.value })} />
         <button className="btn primary" type="button" onClick={() => setAdding(true)}>Ajouter</button>
       </div>
-      <div className="chips" role="group" aria-label="Filtrer par catégorie">
-        {["Toutes", "Favorites", SEASON, READY, ...CATS].map(c => {
-          const n = recipes.filter(r => c === "Toutes" ? true : c === "Favorites" ? r.fav : c === SEASON ? inSeason(r) : c === READY ? !!r.readyMade : r.category === c).length;
-          if (n === 0 && c !== "Toutes" && c !== ui.filterCat) return null;
-          return (
-            <button key={c} className="chip" type="button" aria-pressed={ui.filterCat === c}
-              onClick={() => setUi({ ...ui, filterCat: c })}>{c} {n}</button>
-          );
-        })}
+      <div className="chips" role="group" aria-label="Filtrer par type">
+        <button className="chip" type="button" aria-pressed={ui.filters.length === 0}
+          onClick={() => setUi({ ...ui, filters: [] })}>Toutes {recipes.length}</button>
+        {TYPE_FILTERS.map(chip)}
+      </div>
+      <div className="chips" role="group" aria-label="Filtrer par ambiance">
+        {MOOD_FILTERS.map(chip)}
       </div>
       <ul className="list">
         {shown.map(r => {

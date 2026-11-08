@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { aggregate, fmtTime, isComplete, norm, portionsOf, qtyText } from "./format";
 import { newFinder, propose, rank } from "./finder";
 import { currentSeason, inSeason, isSeasonal } from "./season";
+import { recipeMatches, toggleFilter } from "./filters";
 import type { Recipe } from "../types";
 import { fitSize } from "./image";
 
@@ -136,5 +137,36 @@ describe("saisons", () => {
     }
     const sansBoost = rank(newFinder(), recettes, "Été").filter(x => x.r.id !== "ete");
     sansBoost.forEach(x => expect(x.why).not.toContain("de saison"));
+  });
+});
+
+describe("filtres de la liste", () => {
+  const A = r("a", { category: "Plat", envies: ["Gourmand"], fav: true, saisons: ["Hiver"] });
+  const B = r("b", { category: "Dessert", envies: ["Healthy", "Gourmand"], saisons: ["Été"] });
+  const C = r("c", { category: "Plat", envies: ["Anti-inflammatoire"], readyMade: true });
+  it("sans filtre, tout passe", () => {
+    [A, B, C].forEach(x => expect(recipeMatches(x, [])).toBe(true));
+  });
+  it("une ambiance seule", () => {
+    expect([A, B, C].filter(x => recipeMatches(x, ["Gourmand"])).map(x => x.id)).toEqual(["a", "b"]);
+  });
+  it("plusieurs ambiances : l'une ou l'autre", () => {
+    expect([A, B, C].filter(x => recipeMatches(x, ["Healthy", "Anti-inflammatoire"])).map(x => x.id)).toEqual(["b", "c"]);
+  });
+  it("catégorie et ambiance se cumulent", () => {
+    expect([A, B, C].filter(x => recipeMatches(x, ["Plat", "Gourmand"])).map(x => x.id)).toEqual(["a"]);
+  });
+  it("plusieurs catégories : l'une ou l'autre", () => {
+    expect([A, B, C].filter(x => recipeMatches(x, ["Plat", "Dessert"])).length).toBe(3);
+  });
+  it("De saison, Favorites et Prêt à manger se cumulent", () => {
+    expect([A, B, C].filter(x => recipeMatches(x, ["De saison"], "Été")).map(x => x.id)).toEqual(["b"]);
+    expect([A, B, C].filter(x => recipeMatches(x, ["Favorites", "De saison"], "Hiver")).map(x => x.id)).toEqual(["a"]);
+    expect([A, B, C].filter(x => recipeMatches(x, ["Prêt à manger"])).map(x => x.id)).toEqual(["c"]);
+    expect([A, B, C].filter(x => recipeMatches(x, ["Prêt à manger", "Favorites"])).length).toBe(0);
+  });
+  it("coche et décoche un filtre", () => {
+    expect(toggleFilter([], "Gourmand")).toEqual(["Gourmand"]);
+    expect(toggleFilter(["Gourmand", "Plat"], "Gourmand")).toEqual(["Plat"]);
   });
 });

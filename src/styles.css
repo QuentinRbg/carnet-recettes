@@ -256,3 +256,6 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 
 /* Étiquettes de saison sur la fiche */
 .tag.season { background: var(--warn-soft); color: var(--warn); }
+
+/* Deuxième ligne de filtres (ambiances), serrée contre la première */
+.chips + .chips { margin-top: -8px; }
