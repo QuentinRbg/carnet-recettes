@@ -3,6 +3,8 @@ import {
   addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc, writeBatch
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { defaultBatch, dropRecipe, normalizeBatch } from "../lib/batch";
+import type { Batch } from "../lib/batch";
 import type { Photo } from "../lib/image";
 import type { Cart, Recipe, RecipeInput } from "../types";
 
@@ -22,6 +24,10 @@ export function useData(toast: (msg: string) => void) {
   const cartRef = useRef<Cart>(EMPTY_CART);
   const writing = useRef(false);
   const dirty = useRef(false);
+  const [batch, setBatch] = useState<Batch>(defaultBatch);
+  const batchRef = useRef<Batch>(batch);
+  const bWriting = useRef(false);
+  const bDirty = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setNotice("Les recettes mettent du temps à arriver…"), 10000);
@@ -45,7 +51,13 @@ export function useData(toast: (msg: string) => void) {
       cartRef.current = next;
       setCart(next);
     }, () => {});
-    return () => { clearTimeout(timer); unsubRecipes(); unsubCart(); };
+    const unsubBatch = onSnapshot(doc(db, "batch", "main"), snap => {
+      if (bWriting.current || bDirty.current) return;
+      const next = normalizeBatch(snap.exists() ? snap.data() : null);
+      batchRef.current = next;
+      setBatch(next);
+    }, () => {});
+    return () => { clearTimeout(timer); unsubRecipes(); unsubCart(); unsubBatch(); };
   }, []);
 
   const persistCart = useCallback(() => {
@@ -59,6 +71,24 @@ export function useData(toast: (msg: string) => void) {
         if (dirty.current) persistCart();
       });
   }, [toast]);
+
+  const persistBatch = useCallback(() => {
+    if (bWriting.current) { bDirty.current = true; return; }
+    bWriting.current = true; bDirty.current = false;
+    setDoc(doc(db, "batch", "main"), batchRef.current)
+      .catch(() => toast("Le plan de batch n'a pas pu être enregistré."))
+      .then(() => {
+        bWriting.current = false;
+        if (bDirty.current) persistBatch();
+      });
+  }, [toast]);
+
+  const updateBatch = useCallback((fn: (b: Batch) => Batch) => {
+    const next = fn(batchRef.current);
+    batchRef.current = next;
+    setBatch(next);
+    persistBatch();
+  }, [persistBatch]);
 
   const updateCart = useCallback((fn: (c: Cart) => Cart) => {
     const next = fn(cartRef.current);
@@ -111,20 +141,22 @@ export function useData(toast: (msg: string) => void) {
 
   const removeRecipe = useCallback((id: string) => {
     deleteDoc(doc(db, "photos", id)).catch(() => {});
+    if (batchRef.current.slots.some(s => s.rid === id)) updateBatch(b => dropRecipe(b, id));
     deleteDoc(doc(db, "recettes", id)).then(() => {
       if (cartRef.current.items.some(it => it.rid === id)) {
         updateCart(c => ({ ...c, items: c.items.filter(it => it.rid !== id) }));
       }
     }).catch(() => toast("Suppression impossible, réessaie."));
-  }, [updateCart, toast]);
+  }, [updateCart, updateBatch, toast]);
 
   /** Importe une sauvegarde : les recettes de même identifiant sont remplacées. */
-  const importAll = useCallback(async (list: Recipe[], panier?: Cart, photos?: Record<string, string>) => {
+  const importAll = useCallback(async (list: Recipe[], panier?: Cart, photos?: Record<string, string>, plan?: Batch) => {
     const items: { path: [string, string]; data: Record<string, unknown> }[] = list.map(r => {
       const { id, ...rest } = r;
       return { path: ["recettes", id], data: rest };
     });
     if (panier) items.push({ path: ["panier", "main"], data: { items: panier.items, checked: panier.checked } });
+    if (plan) items.push({ path: ["batch", "main"], data: { slots: plan.slots, checked: plan.checked, persons: plan.persons } });
     for (let k = 0; k < items.length; k += 400) {
       const b = writeBatch(db);
       items.slice(k, k + 400).forEach(it => b.set(doc(db, it.path[0], it.path[1]), it.data));
@@ -137,5 +169,5 @@ export function useData(toast: (msg: string) => void) {
     }
   }, []);
 
-  return { recipes, loaded, notice, cart, updateCart, addToCart, saveRecipe, addRecipe, removeRecipe, importAll, savePhoto, deletePhoto, loadPhoto, fetchPhotos };
+  return { recipes, loaded, notice, cart, batch, updateBatch, updateCart, addToCart, saveRecipe, addRecipe, removeRecipe, importAll, savePhoto, deletePhoto, loadPhoto, fetchPhotos };
 }

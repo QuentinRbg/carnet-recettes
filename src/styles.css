@@ -259,3 +259,34 @@ ol.steps .n { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-t
 
 /* Trait fin entre les filtres de type et les filtres d'ambiance, sur la même ligne */
 .chip-sep { flex: none; align-self: stretch; width: 1px; margin: 4px 2px; background: var(--line); }
+
+/* Batch cooking : les cases du plan */
+.slots { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 560px) { .slots { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.slot { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.slot.empty { border-style: dashed; background: transparent; }
+.slot-num { position: absolute; top: 8px; left: 8px; z-index: 1; min-width: 1.6em; padding: 0 6px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(0, 0, 0, .18); font-size: .8rem; font-weight: 700; line-height: 1.6; text-align: center; font-variant-numeric: tabular-nums; }
+.slot-empty { flex: 1; min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: .92rem; }
+.slot-empty:hover { color: var(--accent); background: var(--accent-soft); }
+.slot-empty .plus { font-size: 2.2rem; line-height: 1; color: var(--accent); }
+.slot .icon-btn.cart { position: absolute; top: 8px; right: 8px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(0, 0, 0, .18); padding: 6px; width: 34px; height: 34px; }
+.slot-foot { display: flex; align-items: center; gap: 8px; padding: 0 10px 10px; }
+.batch-recipes { list-style: none; margin: 0; padding: 0; display: grid; }
+.batch-recipes li { border-bottom: 1px dashed var(--line); }
+.batch-recipes li:last-child { border-bottom: 0; }
+.batch-recipes summary { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 2px; cursor: pointer; }
+.batch-recipes details[open] > summary { padding-bottom: 8px; }
+.batch-recipes details > .steps { margin: 0 0 12px; }
+.batch-recipes details > .btn { margin-bottom: 12px; }
+
+/* Tiroir « Choisir un plat » */
+.picker .drawer-body { padding-top: 44px; }
+.picker .chips { margin-bottom: 0; }
+.pick-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pick-list button { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 12px; padding: 6px; cursor: pointer; }
+.pick-list button:hover { background: var(--accent-soft); border-color: var(--line); }
+.pick-img { width: 52px; height: 52px; flex: none; object-fit: cover; border-radius: 10px; background: var(--accent-soft); }
+.pick-img.ph { display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.pick-img.ph .ico { width: 24px; height: 24px; opacity: .6; }
+.pick-text { display: grid; gap: 2px; min-width: 0; }
+.picker .name { display: block; -webkit-line-clamp: 2; }
