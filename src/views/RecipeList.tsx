@@ -91,7 +91,7 @@ function AddDialog({ initialName, onClose }: { initialName: string; onClose: () 
     const n = name.trim();
     if (!n) { nameRef.current?.focus(); return; }
     try { localStorage.setItem("recettes.cat", cat); } catch { /* pas de stockage disponible */ }
-    addRecipe({ name: n, category: cat, time: Number(time) || 0, ing: [], steps: "", notes: "", envies: [], composants: [], fav: false, createdAt: Date.now() })
+    addRecipe({ name: n, category: cat, time: Number(time) || 0, portions: 1, ing: [], steps: "", notes: "", envies: [], composants: [], fav: false, createdAt: Date.now() })
       .then(() => { onClose(); toast("« " + n + " » ajoutée"); })
       .catch(() => setErr("Ajout impossible, réessaie."));
   }

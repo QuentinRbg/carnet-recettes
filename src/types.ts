@@ -5,6 +5,8 @@ export type Recipe = {
   name: string;
   category: string;
   time: number;
+  /** Nombre de personnes pour lequel les quantités `ing` sont écrites (1 si absent). */
+  portions?: number;
   ing?: Ing[];
   /** Ancien format : un ingrédient par ligne. */
   ingredients?: string;

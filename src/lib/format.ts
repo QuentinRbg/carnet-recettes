@@ -33,6 +33,12 @@ export function qtyText(qty: number | string, unit: string): string {
   return fmtNum(q) + (u ? " " + unitLabel(u, q) : "");
 }
 
+/** Nombre de personnes pour lequel les quantités de la recette sont écrites (1 par défaut). */
+export function portionsOf(r: Recipe): number {
+  const p = Math.round(Number(r.portions));
+  return p >= 1 ? p : 1;
+}
+
 /** Ingrédients d'une recette, y compris l'ancien format (un ingrédient par ligne). */
 export function ingOf(r: Recipe): Ing[] {
   if (Array.isArray(r.ing)) return r.ing;
@@ -41,7 +47,8 @@ export function ingOf(r: Recipe): Ing[] {
 
 export type ShopLine = { key: string; name: string; u: string; q: number };
 
-/** Liste de courses : additionne par nom normalisé et unité (g/kg et ml/cl/l sont convertis). */
+/** Liste de courses : additionne par nom normalisé et unité (g/kg et ml/cl/l sont convertis).
+ * it.n = nombre de personnes ; les quantités de la recette sont pour `portions` personnes. */
 export function aggregate(cart: Cart, recipes: Recipe[]): ShopLine[] {
   const map: Record<string, ShopLine> = {};
   cart.items.forEach(it => {
@@ -55,7 +62,7 @@ export function aggregate(cart: Cart, recipes: Recipe[]): ShopLine[] {
       else if (u === "l") { u = "ml"; mult = 1000; }
       const key = norm(g.n.trim()) + "|" + u;
       if (!map[key]) map[key] = { key, name: g.n.trim(), u, q: 0 };
-      map[key].q += (Number(g.q) || 0) * mult * it.n;
+      map[key].q += (Number(g.q) || 0) * mult * it.n / portionsOf(r);
     });
   });
   return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, "fr"));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, fmtTime, norm, qtyText } from "./format";
+import { aggregate, fmtTime, norm, portionsOf, qtyText } from "./format";
 import { newFinder, propose, rank } from "./finder";
 import type { Recipe } from "../types";
 
@@ -31,6 +31,18 @@ describe("aggregate", () => {
     const out = aggregate({ items: [{ rid: "a", n: 2 }, { rid: "b", n: 1 }], checked: [] }, recipes);
     expect(out.find(x => x.key === "farine|g")?.q).toBe(300);
     expect(out.find(x => x.key === "lait|ml")?.q).toBe(201);
+  });
+  it("divise par le nombre de personnes de la recette", () => {
+    const quiche = r("q", { portions: 4, ing: [{ n: "Œuf", q: 3, u: "pièce" }, { n: "Brocoli", q: 300, u: "g" }] });
+    const out = aggregate({ items: [{ rid: "q", n: 2 }], checked: [] }, [quiche]);
+    expect(out.find(x => x.key === "œuf|pièce")?.q).toBe(1.5);
+    expect(out.find(x => x.key === "brocoli|g")?.q).toBe(150);
+    expect(aggregate({ items: [{ rid: "q", n: 4 }], checked: [] }, [quiche]).find(x => x.key === "brocoli|g")?.q).toBe(300);
+  });
+  it("portions absent ou invalide = 1", () => {
+    expect(portionsOf(r("a", {}))).toBe(1);
+    expect(portionsOf(r("b", { portions: 0 }))).toBe(1);
+    expect(portionsOf(r("c", { portions: 4 }))).toBe(4);
   });
   it("ignore les recettes supprimées", () => {
     expect(aggregate({ items: [{ rid: "x", n: 1 }], checked: [] }, [])).toEqual([]);

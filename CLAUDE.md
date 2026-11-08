@@ -18,9 +18,9 @@ Commandes : `npm run dev` (http://localhost:5173/carnet-recettes/), `npm test`, 
 - `LISEZMOI.md` : guide de mise en ligne.
 
 ## Données (Firestore)
-- `recettes/{id}` : `name`, `category` (Entrée, Plat, Dessert, Apéro, Petit-déj, Autre), `time` (minutes, 0 = inconnu), `ing` (liste de `{n, q, u}`), `steps` (une étape par ligne), `notes`, `fav`, `createdAt` (ms), `envies` (liste parmi `ENVIES`), `composants` (liste parmi `COMPS`).
+- `recettes/{id}` : `name`, `category` (Entrée, Plat, Dessert, Apéro, Petit-déj, Autre), `time` (minutes, 0 = inconnu), `portions` (nombre de personnes pour lequel les quantités sont écrites, 1 si absent), `ing` (liste de `{n, q, u}`), `steps` (une étape par ligne), `notes`, `fav`, `createdAt` (ms), `envies` (liste parmi `ENVIES`), `composants` (liste parmi `COMPS`).
 - `panier/main` : `items` (liste de `{rid, n}`, n = nombre de personnes) et `checked` (clés `nom normalisé|unité` cochées).
-- Les quantités `q` sont **par personne**. La fiche et la liste de courses les multiplient. Les unités sont dans `UNITS` (g, kg, ml, cl, l, càs, càc, pincée, gousse, pièce, tranche, feuille, poignée, bouquet, botte). La liste de courses additionne par nom normalisé et unité, en convertissant g/kg et ml/cl/l.
+- Les quantités `q` sont celles de la recette pour `portions` personnes (1 par défaut, donc par personne). La fiche et la liste de courses les ramènent au nombre de personnes choisi : `q × n / portions`. La fiche et la fenêtre « Ajouter au panier » démarrent à `portions`. Les unités sont dans `UNITS` (g, kg, ml, cl, l, càs, càc, pincée, gousse, pièce, tranche, feuille, poignée, bouquet, botte). La liste de courses additionne par nom normalisé et unité, en convertissant g/kg et ml/cl/l.
 - À savoir : les données renvoyées par `onSnapshot` ne doivent pas être modifiées sur place, on les copie (`{ ...d.data(), id }`). L'état du Meal finder est copié (`structuredClone`) avant chaque modification.
 
 ## Meal finder
@@ -33,6 +33,5 @@ Questionnaire en 7 étapes (`QUIZ`), puis proposition classée par `rank()`. Les
 - Quitter le Meal finder en cours de route ouvre une confirmation et réinitialise le questionnaire.
 
 ## À faire / idées en suspens
-- Champ « pour combien de personnes » par recette : cannelloni, quiche et tarte épinards-chèvre ont des quantités de plat entier (mentionné dans leurs notes), la tatin a été ramenée à 1 portion.
 - Composant « Légumineuses » ou « Végé » pour le Meal finder.
 - Valeurs nutritionnelles encore dans les notes (pas de champ dédié).

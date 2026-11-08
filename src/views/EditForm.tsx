@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useApp } from "../AppContext";
 import { CATS, COMPS, ENVIES, UNITS } from "../constants";
-import { ingCatalog, ingOf, norm } from "../lib/format";
+import { ingCatalog, ingOf, norm, portionsOf } from "../lib/format";
 import type { CatalogEntry } from "../lib/format";
 import type { Recipe, RecipeInput } from "../types";
 
@@ -105,6 +105,7 @@ export function EditForm({ r, onSave, onCancel }: Props) {
   const [name, setName] = useState(r.name || "");
   const [cat, setCat] = useState(r.category);
   const [time, setTime] = useState(r.time ? String(r.time) : "");
+  const [portions, setPortions] = useState(String(portionsOf(r)));
   const [steps, setSteps] = useState(r.steps || "");
   const [notes, setNotes] = useState(r.notes || "");
   const [envies, setEnvies] = useState<string[]>(r.envies || []);
@@ -134,7 +135,8 @@ export function EditForm({ r, onSave, onCancel }: Props) {
     const n = name.trim();
     if (!n) { nameRef.current?.focus(); return; }
     const ing = rows.filter(x => x.n.trim()).map(x => ({ n: x.n.trim(), q: Number(x.q.replace(",", ".")) || 0, u: x.u }));
-    onSave({ name: n, category: cat, time: Number(time) || 0, ing, envies, composants: comps, steps: steps.trim(), notes: notes.trim() });
+    const p = Math.min(99, Math.max(1, Math.round(Number(portions)) || 1));
+    onSave({ name: n, category: cat, time: Number(time) || 0, portions: p, ing, envies, composants: comps, steps: steps.trim(), notes: notes.trim() });
   }
 
   return (
@@ -154,8 +156,12 @@ export function EditForm({ r, onSave, onCancel }: Props) {
         </label>
       </div>
 
+      <label htmlFor="e-portions">Quantité recommandée : pour combien de personnes ?
+        <input type="number" id="e-portions" min={1} max={99} inputMode="numeric" value={portions} onChange={e => setPortions(e.target.value)} />
+      </label>
+
       <div className="form">
-        <span className="label-up">Ingrédients, pour 1 personne</span>
+        <span className="label-up">Ingrédients, pour {Math.max(1, Math.round(Number(portions)) || 1)} {Number(portions) > 1 ? "personnes" : "personne"}</span>
         <div className="ing-rows" ref={rowsBox}>
           {rows.map((row, i) => (
             <div className="ing-row" key={row.id}>
