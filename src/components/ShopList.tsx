@@ -1,6 +1,6 @@
 import { useApp } from "../AppContext";
 import { emojiOf } from "../lib/emoji";
-import { qtyText } from "../lib/format";
+import { shopQtyText } from "../lib/format";
 import type { ShopLine } from "../lib/format";
 import { RAYONS, rayonFor } from "../lib/rayon";
 
@@ -37,7 +37,7 @@ export function ShopList({ lines, isOn, onToggle }: Props) {
                     <input type="checkbox" checked={isOn(x.key)} onChange={() => onToggle(x.key)} />
                     <span className="emo" aria-hidden="true">{emojiOf(x.name, emojis)}</span>
                     <span className="it">{x.name}</span>
-                    <span className="q">{qtyText(x.q, x.u)}</span>
+                    <span className="q">{shopQtyText(x)}</span>
                   </label>
                 </li>
               ))}

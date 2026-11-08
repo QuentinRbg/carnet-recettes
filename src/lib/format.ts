@@ -52,25 +52,78 @@ export function ingOf(r: Recipe): Ing[] {
 
 export type ShopLine = { key: string; name: string; u: string; q: number };
 
-/** Liste de courses : additionne par nom normalisé et unité (g/kg et ml/cl/l sont convertis).
- * it.n = nombre de personnes ; les quantités de la recette sont pour `portions` personnes. */
+const FACULTATIF = /\(\s*facultatif\s*\)/i;
+
+/** Singulier approximatif : retire le « s » final des mots de plus de 3 lettres (oignons → oignon). */
+const singular = (w: string) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+
+/**
+ * Clé d'un ingrédient dans la liste de courses : sans accents ni majuscules, sans « (facultatif) », au singulier.
+ * « Oignons » et « Oignon », « Ciboulette (facultatif) » et « Ciboulette » donnent la même clé.
+ */
+export function ingredientKey(name: string): string {
+  return norm(name).replace(/œ/g, "oe").replace(FACULTATIF, "")
+    .split(/\s+/).filter(Boolean).map(singular).join(" ");
+}
+
+/** Ingrédients qu'on mesure en volume : grammes et millilitres se valent à peu près (1 g ≈ 1 ml), et une cuillère se convertit. */
+const LIQUID = /creme|\blait\b|concass|coulis|sauce|huile|vinaigre|\bvin\b|bouillon|\bjus\b|soupe|rhum|miel|sirop/;
+
+/**
+ * Liste de courses. it.n = nombre de personnes ; les quantités de la recette sont pour `portions` personnes.
+ * On additionne un même ingrédient (voir ingredientKey) en convertissant :
+ * - g et kg ; ml, cl et l ; cuillères à soupe et à café (1 càs = 3 càc), qui restent donc des lignes distinctes des autres unités ;
+ * - pour les liquides seulement (crème, lait, huile, sauces…), les grammes et les cuillères (1 càc = 5 ml) en millilitres,
+ *   dès qu'il y a des grammes ou des millilitres ; s'il n'y a que des cuillères, on garde les cuillères.
+ * Les pièces, pincées, gousses… ne se convertissent pas : une ligne par unité.
+ */
 export function aggregate(cart: Cart, recipes: Recipe[]): ShopLine[] {
-  const map: Record<string, ShopLine> = {};
+  type Acc = { name: string; allOptional: boolean; mass: number; vol: number; spoon: number; other: Record<string, number> };
+  const acc = new Map<string, Acc>();
   cart.items.forEach(it => {
     const r = recipes.find(x => x.id === it.rid);
     if (!r) return;
     ingOf(r).forEach(g => {
       if (!g.n || !g.n.trim()) return;
-      let u = g.u || "", mult = 1;
-      if (u === "kg") { u = "g"; mult = 1000; }
-      else if (u === "cl") { u = "ml"; mult = 10; }
-      else if (u === "l") { u = "ml"; mult = 1000; }
-      const key = norm(g.n.trim()) + "|" + u;
-      if (!map[key]) map[key] = { key, name: g.n.trim(), u, q: 0 };
-      map[key].q += (Number(g.q) || 0) * mult * it.n / portionsOf(r);
+      const k = ingredientKey(g.n);
+      if (!k) return;
+      const optional = FACULTATIF.test(g.n);
+      const e = acc.get(k) || { name: g.n.replace(FACULTATIF, "").trim(), allOptional: true, mass: 0, vol: 0, spoon: 0, other: {} };
+      if (!optional) e.allOptional = false;
+      const q = (Number(g.q) || 0) * it.n / portionsOf(r);
+      const u = g.u || "";
+      if (u === "g") e.mass += q; else if (u === "kg") e.mass += q * 1000;
+      else if (u === "ml") e.vol += q; else if (u === "cl") e.vol += q * 10; else if (u === "l") e.vol += q * 1000;
+      else if (u === "càc") e.spoon += q; else if (u === "càs") e.spoon += q * 3;
+      else e.other[u] = (e.other[u] || 0) + q;
+      acc.set(k, e);
     });
   });
-  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  const out: ShopLine[] = [];
+  acc.forEach((e, k) => {
+    let { mass, vol, spoon } = e;
+    if (LIQUID.test(k) && (mass > 0 || vol > 0)) { vol += mass + spoon * 5; mass = 0; spoon = 0; }
+    const name = e.allOptional ? e.name + " (facultatif)" : e.name;
+    if (mass) out.push({ key: k + "|g", name, u: "g", q: mass });
+    if (vol) out.push({ key: k + "|ml", name, u: "ml", q: vol });
+    if (spoon) out.push({ key: k + "|càc", name, u: "càc", q: spoon });
+    Object.entries(e.other).forEach(([u, q]) => out.push({ key: k + "|" + u, name, u, q }));
+  });
+  return out.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}
+
+/** Quantité d'une ligne de la liste de courses. Les cuillères à café s'affichent en cuillères à soupe quand il y en a assez (7 càc → 2 càs 1 càc). */
+export function shopQtyText(x: ShopLine): string {
+  if (x.u === "càc") {
+    const t = Math.round(x.q * 100) / 100;
+    if (t >= 3) {
+      const spoons = Math.floor(t / 3 + 1e-9);
+      const rest = Math.round((t - spoons * 3) * 100) / 100;
+      return fmtNum(spoons) + " càs" + (rest > 0 ? " " + fmtNum(rest) + " càc" : "");
+    }
+    return fmtNum(t) + " càc";
+  }
+  return qtyText(x.q, x.u);
 }
 
 export type CatalogEntry = { k: string; name: string; unit: string };
