@@ -4,7 +4,6 @@ import { signOut } from "firebase/auth";
 import { AppContext } from "./AppContext";
 import type { AppCtx } from "./AppContext";
 import { ConfirmBox, Dialog } from "./components/Dialog";
-import { CartIcon } from "./components/Icons";
 import { Stepper } from "./components/Stepper";
 import { useToast } from "./components/Toast";
 import { auth } from "./firebase";
@@ -122,15 +121,13 @@ function Main() {
   return (
     <AppContext.Provider value={ctx}>
       <main className={route.v === "list" ? "wide" : undefined}>
-        <header>
-          {data.notice ? <p className="sub">{data.notice}</p> : null}
-        </header>
+        {data.notice ? <header><p className="sub">{data.notice}</p></header> : null}
 
         <nav className="tabs" aria-label="Sections">
           <button className="tab" type="button" {...tab(route.v === "list" || route.v === "recipe")} onClick={() => go("")}><span>Recettes</span></button>
           <button className="tab" type="button" {...tab(route.v === "finder")} onClick={() => go("finder")}><span>Meal finder</span></button>
           <button className="tab" type="button" {...tab(route.v === "courses")} onClick={() => go("courses")}>
-            <span><CartIcon /></span><span>Courses</span>
+            <span>Courses</span>
             <span className="badge">{data.cart.items.length ? data.cart.items.length : ""}</span>
           </button>
         </nav>
