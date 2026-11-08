@@ -7,3 +7,8 @@ dist
 
 # macOS
 .DS_Store
+
+# Clés Firebase Admin et brouillons de recettes : ne jamais publier
+service-account*.json
+*-firebase-adminsdk-*.json
+recettes-a-ajouter*.json
